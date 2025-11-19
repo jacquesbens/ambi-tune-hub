@@ -13,7 +13,7 @@ const Index = () => {
   const [activeView, setActiveView] = useState("library");
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const { albums: importedAlbums, addAlbums } = useAlbumStorage();
+  const { albums: importedAlbums, addAlbums, removeAlbum, removeTrack } = useAlbumStorage();
   const [allAlbums, setAllAlbums] = useState<Album[]>(mockAlbums);
   const audioPlayer = useAudioPlayer();
 
@@ -71,6 +71,40 @@ const Index = () => {
     setSelectedAlbum(null);
   };
 
+  const handleDeleteAlbum = (albumId: string) => {
+    removeAlbum(albumId);
+    setAllAlbums(prev => prev.filter(album => album.id !== albumId));
+    if (selectedAlbum?.id === albumId) {
+      setSelectedAlbum(null);
+    }
+  };
+
+  const handleDeleteTrack = (trackId: string) => {
+    if (selectedAlbum) {
+      removeTrack(selectedAlbum.id, trackId);
+      const updatedAlbum = {
+        ...selectedAlbum,
+        tracks: selectedAlbum.tracks.filter(track => track.id !== trackId)
+      };
+      
+      if (updatedAlbum.tracks.length === 0) {
+        // If no tracks left, remove the album and go back
+        setSelectedAlbum(null);
+        setAllAlbums(prev => prev.filter(album => album.id !== selectedAlbum.id));
+      } else {
+        setSelectedAlbum(updatedAlbum);
+        setAllAlbums(prev => prev.map(album => 
+          album.id === selectedAlbum.id ? updatedAlbum : album
+        ));
+      }
+      
+      // Stop playing if the deleted track is currently playing
+      if (audioPlayer.currentTrack?.id === trackId) {
+        audioPlayer.pause();
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-background">
       <div className="flex flex-1 overflow-hidden">
@@ -93,6 +127,7 @@ const Index = () => {
                   onPlayTrack={handleTrackPlay}
                   currentTrack={audioPlayer.currentTrack}
                   isPlaying={audioPlayer.isPlaying}
+                  onDeleteTrack={handleDeleteTrack}
                 />
               ) : (
                 <>
@@ -107,6 +142,7 @@ const Index = () => {
                     albums={allAlbums}
                     focusedIndex={navigationMode === "content" ? contentNav.focusedIndex : -1}
                     onSelect={handleAlbumSelect}
+                    onDelete={handleDeleteAlbum}
                   />
                 </>
               )}
