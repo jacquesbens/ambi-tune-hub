@@ -78,10 +78,13 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
         const metadata = await readMetadata(file);
         const url = URL.createObjectURL(file);
         tracksData.push({ file, metadata, url });
+        console.log(`✓ Fichier traité: ${file.name}`);
       } catch (error) {
-        console.error(`Error reading ${file.name}:`, error);
+        console.error(`✗ Erreur traitement ${file.name}:`, error);
       }
     }
+
+    console.log(`Total fichiers traités: ${tracksData.length}/${audioFiles.length}`);
 
     // Group tracks by album
     const albumsMap = new Map<string, {
@@ -97,6 +100,8 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       const albumName = metadata.tags?.album || "Album inconnu";
       const year = metadata.tags?.year || new Date().getFullYear();
       const title = metadata.tags?.title || file.name.replace(/\.[^/.]+$/, "");
+      
+      console.log(`Ajout piste: ${title} - ${artist} - ${albumName}`);
       
       // Extract cover art
       let coverUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500";
@@ -145,14 +150,28 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
 
   const readMetadata = async (file: File): Promise<any> => {
     try {
-      const metadata = await musicMetadata.parseBlob(file);
+      console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}`);
+      const metadata = await musicMetadata.parseBlob(file, { 
+        skipCovers: false,
+        includeChapters: false 
+      });
+      
+      console.log(`Métadonnées extraites pour ${file.name}:`, {
+        artist: metadata.common.artist,
+        album: metadata.common.album,
+        title: metadata.common.title,
+        year: metadata.common.year,
+        duration: metadata.format.duration,
+        hasPicture: !!metadata.common.picture?.[0]
+      });
+
       return {
         format: metadata.format,
         tags: {
-          artist: metadata.common.artist,
-          album: metadata.common.album,
-          title: metadata.common.title,
-          year: metadata.common.year,
+          artist: metadata.common.artist || null,
+          album: metadata.common.album || null,
+          title: metadata.common.title || null,
+          year: metadata.common.year || null,
           picture: metadata.common.picture?.[0] ? {
             data: metadata.common.picture[0].data,
             format: metadata.common.picture[0].format,
@@ -160,8 +179,18 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
         },
       };
     } catch (error) {
-      console.error("Error reading metadata:", error);
-      return { format: {}, tags: {} };
+      console.error(`Erreur lecture métadonnées ${file.name}:`, error);
+      // Return empty metadata instead of throwing
+      return { 
+        format: { duration: 0 }, 
+        tags: {
+          artist: null,
+          album: null,
+          title: null,
+          year: null,
+          picture: null
+        } 
+      };
     }
   };
 
