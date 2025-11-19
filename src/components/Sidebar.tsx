@@ -19,7 +19,7 @@ export const Sidebar = ({ activeView, onNavigate, focusedIndex }: SidebarProps) 
     <aside className="w-64 h-full bg-card border-r border-border flex flex-col py-8">
       <div className="px-6 mb-12">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          MusicTV
+          R_music
         </h1>
       </div>
       
