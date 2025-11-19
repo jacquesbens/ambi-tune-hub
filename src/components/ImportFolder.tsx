@@ -57,10 +57,14 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
   };
 
   const processFiles = async (files: File[]): Promise<Album[]> => {
-    const audioFiles = files.filter(file => 
-      file.type.startsWith("audio/") || 
-      /\.(mp3|m4a|wav|flac|ogg|aac)$/i.test(file.name)
-    );
+    const audioFiles = files.filter(file => {
+      const isAudioType = file.type.startsWith("audio/") || 
+        file.type === "audio/mp4" || 
+        file.type === "audio/x-m4a" ||
+        file.type === "audio/m4a";
+      const hasAudioExtension = /\.(mp3|m4a|wav|flac|ogg|aac)$/i.test(file.name);
+      return isAudioType || hasAudioExtension;
+    });
 
     const tracksData: Array<{
       file: File;
@@ -120,8 +124,9 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
         title,
         artist,
         album: albumName,
-        duration: 0, // Duration would need audio element to determine
+        duration: metadata.format?.duration || 0,
         cover: coverUrl,
+        url,
       });
     });
 
@@ -142,6 +147,7 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
     try {
       const metadata = await musicMetadata.parseBlob(file);
       return {
+        format: metadata.format,
         tags: {
           artist: metadata.common.artist,
           album: metadata.common.album,
@@ -155,7 +161,7 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       };
     } catch (error) {
       console.error("Error reading metadata:", error);
-      return { tags: {} };
+      return { format: {}, tags: {} };
     }
   };
 
@@ -165,7 +171,7 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
         ref={fileInputRef}
         type="file"
         multiple
-        accept="audio/*,.mp3,.m4a,.wav,.flac,.ogg,.aac"
+        accept="audio/*,.mp3,.m4a,.wav,.flac,.ogg,.aac,audio/mp4,audio/x-m4a,audio/m4a"
         onChange={handleFileSelect}
         className="hidden"
         {...({ webkitdirectory: "", directory: "" } as any)}
