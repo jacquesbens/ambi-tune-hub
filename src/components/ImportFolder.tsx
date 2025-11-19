@@ -1,17 +1,27 @@
 import { useRef } from "react";
-import { FolderOpen, Upload } from "lucide-react";
+import { FolderOpen, Upload, Trash2, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useFolderHistory } from "@/hooks/useFolderHistory";
 import { Album, Track } from "@/data/mockData";
 import * as musicMetadata from "music-metadata-browser";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface ImportFolderProps {
   onImport: (albums: Album[]) => void;
+  onRefreshMetadata?: () => void;
 }
 
-export const ImportFolder = ({ onImport }: ImportFolderProps) => {
+export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { folders, addFolder, removeFolder } = useFolderHistory();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -20,19 +30,28 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       return;
     }
 
+    // Extract folder name from first file path
+    const firstFile = files[0];
+    const folderName = firstFile.webkitRelativePath 
+      ? firstFile.webkitRelativePath.split('/')[0] 
+      : "Fichiers sélectionnés";
+
     toast({
       title: "Import en cours",
-      description: `Traitement de ${files.length} fichiers...`,
+      description: `Traitement de ${files.length} fichiers depuis "${folderName}"...`,
     });
 
     try {
       const albums = await processFiles(files);
       
       if (albums.length > 0) {
+        // Add folder to history
+        addFolder(folderName, files.length);
+        
         onImport(albums);
         toast({
           title: "Import réussi",
-          description: `${albums.length} albums ajoutés à votre bibliothèque`,
+          description: `${albums.length} albums ajoutés depuis "${folderName}"`,
         });
       } else {
         toast({
@@ -225,8 +244,20 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Aujourd'hui";
+    if (diffDays === 1) return "Hier";
+    if (diffDays < 7) return `Il y a ${diffDays} jours`;
+    return date.toLocaleDateString('fr-FR');
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <input
         ref={fileInputRef}
         type="file"
@@ -253,7 +284,6 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
               fileInputRef.current.removeAttribute("webkitdirectory");
               fileInputRef.current.removeAttribute("directory");
               fileInputRef.current.click();
-              // Reset attributes after click
               setTimeout(() => {
                 fileInputRef.current?.setAttribute("webkitdirectory", "");
                 fileInputRef.current?.setAttribute("directory", "");
@@ -272,6 +302,57 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       <p className="text-sm text-muted-foreground">
         Formats supportés : MP3, M4A, WAV, FLAC, OGG, AAC
       </p>
+
+      {folders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Dossiers récemment importés
+            </CardTitle>
+            <CardDescription>
+              Ré-importez facilement vos dossiers pour rafraîchir les métadonnées
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {folders.map((folder) => (
+              <div
+                key={folder.name}
+                className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{folder.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {folder.fileCount} fichiers • {formatDate(folder.addedAt)}
+                  </p>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      toast({
+                        title: "Ré-import du dossier",
+                        description: `Veuillez sélectionner à nouveau le dossier "${folder.name}"`,
+                      });
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeFolder(folder.name)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
