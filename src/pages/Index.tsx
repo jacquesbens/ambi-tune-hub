@@ -76,10 +76,6 @@ const Index = () => {
                   {allAlbums.length} albums dans votre collection
                 </p>
               </div>
-
-              <div className="px-8 pb-4">
-                <ImportFolder onImport={addAlbums} />
-              </div>
               
               <AlbumGrid
                 albums={allAlbums}
@@ -125,9 +121,7 @@ const Index = () => {
                   <p className="text-muted-foreground mb-4">
                     Gérez les dossiers contenant votre musique
                   </p>
-                  <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium tv-focusable">
-                    Ajouter un dossier
-                  </button>
+                  <ImportFolder onImport={addAlbums} />
                 </div>
               </div>
             </div>
