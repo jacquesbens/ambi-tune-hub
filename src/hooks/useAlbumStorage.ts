@@ -50,5 +50,20 @@ export const useAlbumStorage = () => {
     saveAlbums(updated);
   };
 
-  return { albums, addAlbums, clearAlbums, saveAlbums, removeAlbum, removeTrack };
+  const updateTrack = (albumId: string, trackId: string, updates: Partial<typeof albums[0]['tracks'][0]>) => {
+    const updated = albums.map(album => {
+      if (album.id === albumId) {
+        return {
+          ...album,
+          tracks: album.tracks.map(track => 
+            track.id === trackId ? { ...track, ...updates } : track
+          )
+        };
+      }
+      return album;
+    });
+    saveAlbums(updated);
+  };
+
+  return { albums, addAlbums, clearAlbums, saveAlbums, removeAlbum, removeTrack, updateTrack };
 };

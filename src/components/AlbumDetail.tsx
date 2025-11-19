@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, Pause, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, Trash2, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Album, Track } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EditMetadataDialog } from "./EditMetadataDialog";
 import { useState } from "react";
 
 interface AlbumDetailProps {
@@ -21,6 +22,7 @@ interface AlbumDetailProps {
   currentTrack?: Track;
   isPlaying: boolean;
   onDeleteTrack?: (trackId: string) => void;
+  onUpdateTrack?: (trackId: string, updates: Partial<Track>) => void;
 }
 
 export const AlbumDetail = ({ 
@@ -29,9 +31,11 @@ export const AlbumDetail = ({
   onPlayTrack,
   currentTrack,
   isPlaying,
-  onDeleteTrack
+  onDeleteTrack,
+  onUpdateTrack
 }: AlbumDetailProps) => {
   const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
+  const [editTrack, setEditTrack] = useState<Track | null>(null);
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -112,18 +116,33 @@ export const AlbumDetail = ({
                   </div>
                 </button>
 
-                {onDeleteTrack && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTrackId(track.id);
-                    }}
-                    className="p-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Supprimer la piste"
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </button>
-                )}
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onUpdateTrack && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditTrack(track);
+                      }}
+                      className="p-4"
+                      aria-label="Modifier les métadonnées"
+                    >
+                      <Edit className="w-4 h-4 text-foreground" />
+                    </button>
+                  )}
+                  
+                  {onDeleteTrack && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTrackId(track.id);
+                      }}
+                      className="p-4"
+                      aria-label="Supprimer la piste"
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -154,6 +173,17 @@ export const AlbumDetail = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditMetadataDialog
+        track={editTrack}
+        open={!!editTrack}
+        onOpenChange={(open) => !open && setEditTrack(null)}
+        onSave={(trackId, updates) => {
+          if (onUpdateTrack) {
+            onUpdateTrack(trackId, updates);
+          }
+        }}
+      />
     </div>
   );
 };

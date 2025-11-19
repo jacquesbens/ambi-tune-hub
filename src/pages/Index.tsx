@@ -13,7 +13,7 @@ const Index = () => {
   const [activeView, setActiveView] = useState("library");
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const { albums: importedAlbums, addAlbums, removeAlbum, removeTrack } = useAlbumStorage();
+  const { albums: importedAlbums, addAlbums, removeAlbum, removeTrack, updateTrack } = useAlbumStorage();
   const [deletedAlbumIds, setDeletedAlbumIds] = useState<Set<string>>(new Set());
   const audioPlayer = useAudioPlayer();
 
@@ -118,6 +118,25 @@ const Index = () => {
     }
   };
 
+  const handleUpdateTrack = (trackId: string, updates: Partial<Track>) => {
+    if (selectedAlbum) {
+      const isImportedAlbum = importedAlbums.some(album => album.id === selectedAlbum.id);
+      
+      if (isImportedAlbum) {
+        updateTrack(selectedAlbum.id, trackId, updates);
+      }
+      
+      const updatedAlbum = {
+        ...selectedAlbum,
+        tracks: selectedAlbum.tracks.map(track => 
+          track.id === trackId ? { ...track, ...updates } : track
+        )
+      };
+      
+      setSelectedAlbum(updatedAlbum);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-background">
       <div className="flex flex-1 overflow-hidden">
@@ -141,6 +160,7 @@ const Index = () => {
                   currentTrack={audioPlayer.currentTrack}
                   isPlaying={audioPlayer.isPlaying}
                   onDeleteTrack={handleDeleteTrack}
+                  onUpdateTrack={handleUpdateTrack}
                 />
               ) : (
                 <>
