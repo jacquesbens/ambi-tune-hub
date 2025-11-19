@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 interface Track {
+  id: string;
   title: string;
   artist: string;
   album: string;
