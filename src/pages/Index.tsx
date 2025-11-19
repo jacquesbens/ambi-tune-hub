@@ -5,14 +5,15 @@ import { Player } from "@/components/Player";
 import { ImportFolder } from "@/components/ImportFolder";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import { useAlbumStorage } from "@/hooks/useAlbumStorage";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { mockAlbums, mockCurrentTrack, type Album } from "@/data/mockData";
 
 const Index = () => {
   const [activeView, setActiveView] = useState("library");
-  const [isPlaying, setIsPlaying] = useState(true);
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
   const { albums: importedAlbums, addAlbums } = useAlbumStorage();
   const [allAlbums, setAllAlbums] = useState<Album[]>(mockAlbums);
+  const audioPlayer = useAudioPlayer();
 
   useEffect(() => {
     setAllAlbums([...mockAlbums, ...importedAlbums]);
@@ -45,7 +46,7 @@ const Index = () => {
     enabled: navigationMode === "player",
     onSelect: (index) => {
       if (index === 1) {
-        setIsPlaying(!isPlaying);
+        audioPlayer.togglePlayPause();
       }
     },
     onBack: () => setNavigationMode("content"),
@@ -131,9 +132,14 @@ const Index = () => {
 
       <Player
         currentTrack={mockCurrentTrack}
-        isPlaying={isPlaying}
-        onPlayPause={() => setIsPlaying(!isPlaying)}
+        isPlaying={audioPlayer.isPlaying}
+        onPlayPause={audioPlayer.togglePlayPause}
         focusedControl={navigationMode === "player" ? playerNav.focusedIndex : -1}
+        currentTime={audioPlayer.currentTime}
+        duration={audioPlayer.duration || mockCurrentTrack.duration}
+        volume={audioPlayer.volume}
+        onSeek={audioPlayer.seek}
+        onVolumeChange={audioPlayer.changeVolume}
       />
     </div>
   );
