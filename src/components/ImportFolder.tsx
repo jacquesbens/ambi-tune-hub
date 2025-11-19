@@ -159,11 +159,27 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       // Log the full metadata structure to understand it
       console.log(`Structure complète métadonnées:`, metadata.common);
       
-      // Extract values properly - some might be strings, some might be objects
-      const getMetadataValue = (value: any) => {
-        if (!value) return null;
-        if (typeof value === 'string' || typeof value === 'number') return value;
-        if (value.value !== undefined) return value.value;
+      // Extract values properly - some might be strings, arrays or wrapped in objects
+      const getMetadataValue = (value: any): string | number | null => {
+        if (value == null) return null;
+
+        // If it's an array, take the first meaningful value
+        if (Array.isArray(value)) {
+          return getMetadataValue(value[0]) as string | number | null;
+        }
+
+        // Direct primitive
+        if (typeof value === "string" || typeof value === "number") {
+          const str = String(value).trim();
+          if (!str || str.toLowerCase() === "undefined") return null;
+          return str;
+        }
+
+        // Objects coming from some tag formats: try their `value` field
+        if (typeof value === "object" && "value" in value) {
+          return getMetadataValue((value as any).value) as string | number | null;
+        }
+
         return null;
       };
 
