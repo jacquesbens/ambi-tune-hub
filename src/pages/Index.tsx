@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AlbumGrid } from "@/components/AlbumGrid";
 import { Player } from "@/components/Player";
+import { ImportFolder } from "@/components/ImportFolder";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import { useAlbumStorage } from "@/hooks/useAlbumStorage";
 import { mockAlbums, mockCurrentTrack, type Album } from "@/data/mockData";
 
 const Index = () => {
   const [activeView, setActiveView] = useState("library");
   const [isPlaying, setIsPlaying] = useState(true);
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
+  const { albums: importedAlbums, addAlbums } = useAlbumStorage();
+  const [allAlbums, setAllAlbums] = useState<Album[]>(mockAlbums);
+
+  useEffect(() => {
+    setAllAlbums([...mockAlbums, ...importedAlbums]);
+  }, [importedAlbums]);
 
   // Sidebar navigation
   const sidebarNav = useKeyboardNavigation({
@@ -23,10 +31,10 @@ const Index = () => {
 
   // Content grid navigation
   const contentNav = useKeyboardNavigation({
-    itemCount: mockAlbums.length,
+    itemCount: allAlbums.length,
     enabled: navigationMode === "content",
     onSelect: (index) => {
-      console.log("Selected album:", mockAlbums[index]);
+      console.log("Selected album:", allAlbums[index]);
     },
     onBack: () => setNavigationMode("sidebar"),
   });
@@ -65,12 +73,16 @@ const Index = () => {
               <div className="p-8 pb-4">
                 <h2 className="text-4xl font-bold text-foreground mb-2">Bibliothèque</h2>
                 <p className="text-xl text-muted-foreground">
-                  {mockAlbums.length} albums dans votre collection
+                  {allAlbums.length} albums dans votre collection
                 </p>
+              </div>
+
+              <div className="px-8 pb-4">
+                <ImportFolder onImport={addAlbums} />
               </div>
               
               <AlbumGrid
-                albums={mockAlbums}
+                albums={allAlbums}
                 focusedIndex={navigationMode === "content" ? contentNav.focusedIndex : -1}
                 onSelect={handleAlbumSelect}
               />
