@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, Pause, Trash2, Edit, RefreshCw } from "lucide-react";
+import { ArrowLeft, Play, Pause, Trash2, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Album, Track } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditMetadataDialog } from "./EditMetadataDialog";
-import { RefreshMetadataDialog } from "./RefreshMetadataDialog";
 import { useState } from "react";
 
 interface AlbumDetailProps {
@@ -37,7 +36,6 @@ export const AlbumDetail = ({
 }: AlbumDetailProps) => {
   const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
   const [editTrack, setEditTrack] = useState<Track | null>(null);
-  const [refreshTrack, setRefreshTrack] = useState<Track | null>(null);
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -120,29 +118,16 @@ export const AlbumDetail = ({
 
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {onUpdateTrack && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRefreshTrack(track);
-                        }}
-                        className="p-4"
-                        aria-label="Rafraîchir les métadonnées"
-                      >
-                        <RefreshCw className="w-4 h-4 text-primary" />
-                      </button>
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditTrack(track);
-                        }}
-                        className="p-4"
-                        aria-label="Modifier les métadonnées"
-                      >
-                        <Edit className="w-4 h-4 text-foreground" />
-                      </button>
-                    </>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditTrack(track);
+                      }}
+                      className="p-4"
+                      aria-label="Modifier les métadonnées"
+                    >
+                      <Edit className="w-4 h-4 text-foreground" />
+                    </button>
                   )}
                   
                   {onDeleteTrack && (
@@ -194,17 +179,6 @@ export const AlbumDetail = ({
         open={!!editTrack}
         onOpenChange={(open) => !open && setEditTrack(null)}
         onSave={(trackId, updates) => {
-          if (onUpdateTrack) {
-            onUpdateTrack(trackId, updates);
-          }
-        }}
-      />
-
-      <RefreshMetadataDialog
-        track={refreshTrack}
-        open={!!refreshTrack}
-        onOpenChange={(open) => !open && setRefreshTrack(null)}
-        onUpdate={(trackId, updates) => {
           if (onUpdateTrack) {
             onUpdateTrack(trackId, updates);
           }
