@@ -156,22 +156,38 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
         includeChapters: false 
       });
       
+      // Log the full metadata structure to understand it
+      console.log(`Structure complète métadonnées:`, metadata.common);
+      
+      // Extract values properly - some might be strings, some might be objects
+      const getMetadataValue = (value: any) => {
+        if (!value) return null;
+        if (typeof value === 'string' || typeof value === 'number') return value;
+        if (value.value !== undefined) return value.value;
+        return null;
+      };
+
+      const artist = getMetadataValue(metadata.common.artist);
+      const album = getMetadataValue(metadata.common.album);
+      const title = getMetadataValue(metadata.common.title);
+      const year = getMetadataValue(metadata.common.year);
+
       console.log(`Métadonnées extraites pour ${file.name}:`, {
-        artist: metadata.common.artist,
-        album: metadata.common.album,
-        title: metadata.common.title,
-        year: metadata.common.year,
-        duration: metadata.format.duration,
+        artist,
+        album,
+        title,
+        year,
+        duration: metadata.format?.duration,
         hasPicture: !!metadata.common.picture?.[0]
       });
 
       return {
         format: metadata.format,
         tags: {
-          artist: metadata.common.artist || null,
-          album: metadata.common.album || null,
-          title: metadata.common.title || null,
-          year: metadata.common.year || null,
+          artist,
+          album,
+          title,
+          year,
           picture: metadata.common.picture?.[0] ? {
             data: metadata.common.picture[0].data,
             format: metadata.common.picture[0].format,
@@ -180,7 +196,6 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
       };
     } catch (error) {
       console.error(`Erreur lecture métadonnées ${file.name}:`, error);
-      // Return empty metadata instead of throwing
       return { 
         format: { duration: 0 }, 
         tags: {
