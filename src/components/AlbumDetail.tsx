@@ -1,7 +1,18 @@
-import { ArrowLeft, Play, Pause } from "lucide-react";
+import { ArrowLeft, Play, Pause, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Album, Track } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 interface AlbumDetailProps {
   album: Album;
@@ -9,6 +20,7 @@ interface AlbumDetailProps {
   onPlayTrack: (track: Track) => void;
   currentTrack?: Track;
   isPlaying: boolean;
+  onDeleteTrack?: (trackId: string) => void;
 }
 
 export const AlbumDetail = ({ 
@@ -16,8 +28,10 @@ export const AlbumDetail = ({
   onBack, 
   onPlayTrack,
   currentTrack,
-  isPlaying 
+  isPlaying,
+  onDeleteTrack
 }: AlbumDetailProps) => {
+  const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -62,42 +76,84 @@ export const AlbumDetail = ({
             const isTrackPlaying = isCurrentTrack && isPlaying;
 
             return (
-              <button
+              <div
                 key={track.id}
-                onClick={() => onPlayTrack(track)}
                 className={cn(
-                  "w-full p-4 flex items-center gap-4 hover:bg-accent transition-colors text-left",
+                  "group flex items-center gap-4 hover:bg-accent transition-colors",
                   isCurrentTrack && "bg-accent"
                 )}
               >
-                <div className="w-12 text-center">
-                  {isTrackPlaying ? (
-                    <Pause className="w-5 h-5 inline text-primary" />
-                  ) : isCurrentTrack ? (
-                    <Play className="w-5 h-5 inline text-primary" />
-                  ) : (
-                    <span className="text-muted-foreground">{index + 1}</span>
-                  )}
-                </div>
+                <button
+                  onClick={() => onPlayTrack(track)}
+                  className="flex-1 p-4 flex items-center gap-4 text-left"
+                >
+                  <div className="w-12 text-center">
+                    {isTrackPlaying ? (
+                      <Pause className="w-5 h-5 inline text-primary" />
+                    ) : isCurrentTrack ? (
+                      <Play className="w-5 h-5 inline text-primary" />
+                    ) : (
+                      <span className="text-muted-foreground">{index + 1}</span>
+                    )}
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className={cn(
-                    "font-medium truncate",
-                    isCurrentTrack ? "text-primary" : "text-foreground"
-                  )}>
-                    {track.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className={cn(
+                      "font-medium truncate",
+                      isCurrentTrack ? "text-primary" : "text-foreground"
+                    )}>
+                      {track.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
+                  </div>
 
-                <div className="text-sm text-muted-foreground">
-                  {formatDuration(track.duration)}
-                </div>
-              </button>
+                  <div className="text-sm text-muted-foreground">
+                    {formatDuration(track.duration)}
+                  </div>
+                </button>
+
+                {onDeleteTrack && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTrackId(track.id);
+                    }}
+                    className="p-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Supprimer la piste"
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
       </div>
+
+      <AlertDialog open={!!deleteTrackId} onOpenChange={() => setDeleteTrackId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette piste ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La piste sera supprimée de l'album.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTrackId && onDeleteTrack) {
+                  onDeleteTrack(deleteTrackId);
+                }
+                setDeleteTrackId(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

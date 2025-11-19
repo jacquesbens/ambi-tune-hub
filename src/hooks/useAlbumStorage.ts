@@ -32,5 +32,23 @@ export const useAlbumStorage = () => {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  return { albums, addAlbums, clearAlbums, saveAlbums };
+  const removeAlbum = (albumId: string) => {
+    const updated = albums.filter(album => album.id !== albumId);
+    saveAlbums(updated);
+  };
+
+  const removeTrack = (albumId: string, trackId: string) => {
+    const updated = albums.map(album => {
+      if (album.id === albumId) {
+        return {
+          ...album,
+          tracks: album.tracks.filter(track => track.id !== trackId)
+        };
+      }
+      return album;
+    }).filter(album => album.tracks.length > 0);
+    saveAlbums(updated);
+  };
+
+  return { albums, addAlbums, clearAlbums, saveAlbums, removeAlbum, removeTrack };
 };
