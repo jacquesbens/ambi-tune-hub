@@ -14,12 +14,13 @@ const Index = () => {
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const { albums: importedAlbums, addAlbums, removeAlbum, removeTrack } = useAlbumStorage();
-  const [allAlbums, setAllAlbums] = useState<Album[]>(mockAlbums);
+  const [deletedAlbumIds, setDeletedAlbumIds] = useState<Set<string>>(new Set());
   const audioPlayer = useAudioPlayer();
 
-  useEffect(() => {
-    setAllAlbums([...mockAlbums, ...importedAlbums]);
-  }, [importedAlbums]);
+  // Combine mock and imported albums, excluding deleted ones
+  const allAlbums = [...mockAlbums, ...importedAlbums].filter(
+    album => !deletedAlbumIds.has(album.id)
+  );
 
   // Sidebar navigation
   const sidebarNav = useKeyboardNavigation({
@@ -72,8 +73,18 @@ const Index = () => {
   };
 
   const handleDeleteAlbum = (albumId: string) => {
-    removeAlbum(albumId);
-    setAllAlbums(prev => prev.filter(album => album.id !== albumId));
+    // Check if this is an imported album
+    const isImportedAlbum = importedAlbums.some(album => album.id === albumId);
+    
+    if (isImportedAlbum) {
+      // Remove from localStorage
+      removeAlbum(albumId);
+    } else {
+      // For mock albums, add to deleted set
+      setDeletedAlbumIds(prev => new Set(prev).add(albumId));
+    }
+    
+    // If the deleted album is currently selected, go back
     if (selectedAlbum?.id === albumId) {
       setSelectedAlbum(null);
     }
@@ -81,21 +92,23 @@ const Index = () => {
 
   const handleDeleteTrack = (trackId: string) => {
     if (selectedAlbum) {
-      removeTrack(selectedAlbum.id, trackId);
+      const isImportedAlbum = importedAlbums.some(album => album.id === selectedAlbum.id);
+      
+      if (isImportedAlbum) {
+        removeTrack(selectedAlbum.id, trackId);
+      }
+      
       const updatedAlbum = {
         ...selectedAlbum,
         tracks: selectedAlbum.tracks.filter(track => track.id !== trackId)
       };
       
       if (updatedAlbum.tracks.length === 0) {
-        // If no tracks left, remove the album and go back
+        // If no tracks left, delete the album
+        handleDeleteAlbum(selectedAlbum.id);
         setSelectedAlbum(null);
-        setAllAlbums(prev => prev.filter(album => album.id !== selectedAlbum.id));
       } else {
         setSelectedAlbum(updatedAlbum);
-        setAllAlbums(prev => prev.map(album => 
-          album.id === selectedAlbum.id ? updatedAlbum : album
-        ));
       }
       
       // Stop playing if the deleted track is currently playing
