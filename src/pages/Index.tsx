@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AlbumGrid } from "@/components/AlbumGrid";
+import { AlbumDetail } from "@/components/AlbumDetail";
 import { Player } from "@/components/Player";
 import { ImportFolder } from "@/components/ImportFolder";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import { useAlbumStorage } from "@/hooks/useAlbumStorage";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
-import { mockAlbums, mockCurrentTrack, type Album } from "@/data/mockData";
+import { mockAlbums, type Album, type Track } from "@/data/mockData";
 
 const Index = () => {
   const [activeView, setActiveView] = useState("library");
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
+  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const { albums: importedAlbums, addAlbums } = useAlbumStorage();
   const [allAlbums, setAllAlbums] = useState<Album[]>(mockAlbums);
   const audioPlayer = useAudioPlayer();
@@ -53,7 +55,20 @@ const Index = () => {
   });
 
   const handleAlbumSelect = (album: Album) => {
-    console.log("Playing album:", album);
+    setSelectedAlbum(album);
+  };
+
+  const handleTrackPlay = (track: Track) => {
+    audioPlayer.loadTrack(track);
+    if (audioPlayer.isPlaying && audioPlayer.currentTrack?.id === track.id) {
+      audioPlayer.pause();
+    } else {
+      audioPlayer.play();
+    }
+  };
+
+  const handleBackToLibrary = () => {
+    setSelectedAlbum(null);
   };
 
   return (
@@ -71,18 +86,30 @@ const Index = () => {
         <main className="flex-1 overflow-auto">
           {activeView === "library" && (
             <div>
-              <div className="p-8 pb-4">
-                <h2 className="text-4xl font-bold text-foreground mb-2">Bibliothèque</h2>
-                <p className="text-xl text-muted-foreground">
-                  {allAlbums.length} albums dans votre collection
-                </p>
-              </div>
-              
-              <AlbumGrid
-                albums={allAlbums}
-                focusedIndex={navigationMode === "content" ? contentNav.focusedIndex : -1}
-                onSelect={handleAlbumSelect}
-              />
+              {selectedAlbum ? (
+                <AlbumDetail
+                  album={selectedAlbum}
+                  onBack={handleBackToLibrary}
+                  onPlayTrack={handleTrackPlay}
+                  currentTrack={audioPlayer.currentTrack}
+                  isPlaying={audioPlayer.isPlaying}
+                />
+              ) : (
+                <>
+                  <div className="p-8 pb-4">
+                    <h2 className="text-4xl font-bold text-foreground mb-2">Bibliothèque</h2>
+                    <p className="text-xl text-muted-foreground">
+                      {allAlbums.length} albums dans votre collection
+                    </p>
+                  </div>
+                  
+                  <AlbumGrid
+                    albums={allAlbums}
+                    focusedIndex={navigationMode === "content" ? contentNav.focusedIndex : -1}
+                    onSelect={handleAlbumSelect}
+                  />
+                </>
+              )}
             </div>
           )}
 
@@ -131,12 +158,12 @@ const Index = () => {
       </div>
 
       <Player
-        currentTrack={mockCurrentTrack}
+        currentTrack={audioPlayer.currentTrack}
         isPlaying={audioPlayer.isPlaying}
         onPlayPause={audioPlayer.togglePlayPause}
         focusedControl={navigationMode === "player" ? playerNav.focusedIndex : -1}
         currentTime={audioPlayer.currentTime}
-        duration={audioPlayer.duration || mockCurrentTrack.duration}
+        duration={audioPlayer.duration}
         volume={audioPlayer.volume}
         onSeek={audioPlayer.seek}
         onVolumeChange={audioPlayer.changeVolume}

@@ -14,6 +14,7 @@ export interface Track {
   album: string;
   duration: number;
   cover: string;
+  url?: string;
 }
 
 export const mockAlbums: Album[] = [
@@ -23,7 +24,35 @@ export const mockAlbums: Album[] = [
     artist: "Daft Punk",
     cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
     year: 2013,
-    tracks: [],
+    tracks: [
+      {
+        id: "1-1",
+        title: "Get Lucky",
+        artist: "Daft Punk",
+        album: "Random Access Memories",
+        duration: 367,
+        cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      },
+      {
+        id: "1-2",
+        title: "Instant Crush",
+        artist: "Daft Punk",
+        album: "Random Access Memories",
+        duration: 337,
+        cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      },
+      {
+        id: "1-3",
+        title: "Lose Yourself to Dance",
+        artist: "Daft Punk",
+        album: "Random Access Memories",
+        duration: 353,
+        cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+      },
+    ],
   },
   {
     id: "2",
@@ -31,7 +60,26 @@ export const mockAlbums: Album[] = [
     artist: "Pink Floyd",
     cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500",
     year: 1973,
-    tracks: [],
+    tracks: [
+      {
+        id: "2-1",
+        title: "Time",
+        artist: "Pink Floyd",
+        album: "The Dark Side of the Moon",
+        duration: 413,
+        cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      },
+      {
+        id: "2-2",
+        title: "Money",
+        artist: "Pink Floyd",
+        album: "The Dark Side of the Moon",
+        duration: 382,
+        cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+      },
+    ],
   },
   {
     id: "3",
