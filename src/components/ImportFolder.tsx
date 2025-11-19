@@ -115,12 +115,20 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
     }>();
 
     tracksData.forEach(({ file, metadata, url }) => {
+      const relativePath = (file as any).webkitRelativePath as string | undefined;
+      const folderName = relativePath ? relativePath.split("/")[0] : null;
+
+      const cleanTitleFromFilename = (name: string) => {
+        const base = name.replace(/\.[^/.]+$/, "");
+        return base.replace(/^\s*\d+[-_.\s]*/u, "").trim();
+      };
+
       const artist = metadata.tags?.artist || "Artiste inconnu";
-      const albumName = metadata.tags?.album || "Album inconnu";
+      const albumName = metadata.tags?.album || folderName || "Album inconnu";
       const year = metadata.tags?.year || new Date().getFullYear();
-      const title = metadata.tags?.title || file.name.replace(/\.[^/.]+$/, "");
+      const title = metadata.tags?.title || cleanTitleFromFilename(file.name);
       
-      console.log(`Ajout piste: ${title} - ${artist} - ${albumName}`);
+      console.log(`Ajout piste: ${title} - ${artist} - ${albumName} (dossier: ${folderName || "n/a"})`);
       
       // Extract cover art
       let coverUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500";
