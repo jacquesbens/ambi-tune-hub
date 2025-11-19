@@ -3,7 +3,7 @@ import { FolderOpen, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Album, Track } from "@/data/mockData";
-import jsmediatags from "jsmediatags";
+import * as musicMetadata from "music-metadata-browser";
 
 interface ImportFolderProps {
   onImport: (albums: Album[]) => void;
@@ -138,13 +138,25 @@ export const ImportFolder = ({ onImport }: ImportFolderProps) => {
     return albums;
   };
 
-  const readMetadata = (file: File): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      jsmediatags.read(file, {
-        onSuccess: (tag) => resolve(tag),
-        onError: (error) => reject(error),
-      });
-    });
+  const readMetadata = async (file: File): Promise<any> => {
+    try {
+      const metadata = await musicMetadata.parseBlob(file);
+      return {
+        tags: {
+          artist: metadata.common.artist,
+          album: metadata.common.album,
+          title: metadata.common.title,
+          year: metadata.common.year,
+          picture: metadata.common.picture?.[0] ? {
+            data: metadata.common.picture[0].data,
+            format: metadata.common.picture[0].format,
+          } : null,
+        },
+      };
+    } catch (error) {
+      console.error("Error reading metadata:", error);
+      return { tags: {} };
+    }
   };
 
   return (
