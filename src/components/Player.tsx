@@ -1,6 +1,6 @@
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { Slider } from "@/components/ui/slider";
 
 interface PlayerProps {
   currentTrack?: {
@@ -13,14 +13,35 @@ interface PlayerProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   focusedControl: number;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  onSeek: (time: number) => void;
+  onVolumeChange: (volume: number) => void;
 }
 
-export const Player = ({ currentTrack, isPlaying, onPlayPause, focusedControl }: PlayerProps) => {
-  const [progress, setProgress] = useState(45);
-
+export const Player = ({ 
+  currentTrack, 
+  isPlaying, 
+  onPlayPause, 
+  focusedControl,
+  currentTime,
+  duration,
+  volume,
+  onSeek,
+  onVolumeChange
+}: PlayerProps) => {
   if (!currentTrack) {
     return null;
   }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const controls = [
     { icon: SkipBack, label: "Précédent" },
@@ -50,16 +71,15 @@ export const Player = ({ currentTrack, isPlaying, onPlayPause, focusedControl }:
         
         {/* Progress Bar */}
         <div className="mt-3 flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">2:45</span>
-          <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary to-accent transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {Math.floor(currentTrack.duration / 60)}:{String(currentTrack.duration % 60).padStart(2, '0')}
-          </span>
+          <span className="text-sm text-muted-foreground">{formatTime(currentTime)}</span>
+          <Slider
+            value={[currentTime]}
+            max={duration || 100}
+            step={0.1}
+            onValueChange={([value]) => onSeek(value)}
+            className="flex-1 cursor-pointer"
+          />
+          <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -88,9 +108,13 @@ export const Player = ({ currentTrack, isPlaying, onPlayPause, focusedControl }:
       {/* Volume */}
       <div className="flex items-center gap-3">
         <Volume2 className="w-6 h-6 text-muted-foreground" />
-        <div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden">
-          <div className="w-3/4 h-full bg-primary" />
-        </div>
+        <Slider
+          value={[volume * 100]}
+          max={100}
+          step={1}
+          onValueChange={([value]) => onVolumeChange(value / 100)}
+          className="w-24 cursor-pointer"
+        />
       </div>
     </div>
   );
