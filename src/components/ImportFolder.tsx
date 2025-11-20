@@ -250,10 +250,10 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
             // music-metadata usually provides Buffer / Uint8Array-like objects
             const uint8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw.data || raw);
             picture = {
-              data: uint8,
+              data: uint8 as any,
               // Most embedded covers in M4A are JPEG, fallback to generic if unknown
               format: (raw as any).format || "image/jpeg",
-            };
+            } as any;
           }
         }
       }
