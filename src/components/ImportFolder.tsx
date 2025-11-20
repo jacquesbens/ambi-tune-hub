@@ -178,15 +178,16 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
   const readMetadata = async (file: File): Promise<any> => {
     try {
       console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}`);
-      const metadata = await musicMetadata.parseBlob(file, { 
+      const metadata = await musicMetadata.parseBlob(file, {
         skipCovers: false,
-        includeChapters: false 
+        includeChapters: false,
       });
-      
+
       // Log the full metadata structure to understand it
-      console.log(`Structure complète métadonnées:`, metadata.common);
-      
-      // Extract values properly - some might be strings, arrays or wrapped in objects
+      console.log(`Structure complète métadonnées (common):`, metadata.common);
+      console.log(`Structure complète métadonnées (native):`, metadata.native);
+
+      // Helper to normalize any value (string | number | array | object) into a primitive
       const getMetadataValue = (value: any): string | number | null => {
         if (value == null) return null;
 
@@ -210,10 +211,52 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
         return null;
       };
 
-      const artist = getMetadataValue(metadata.common.artist);
-      const album = getMetadataValue(metadata.common.album);
-      const title = getMetadataValue(metadata.common.title);
-      const year = getMetadataValue(metadata.common.year);
+      // Some containers (like MP4/M4A) store useful tags only in native tags
+      const nativeMp4 = (metadata as any).native?.mp4 as Array<{ id: string; value: any }> | undefined;
+
+      const getFromNative = (id: string): string | number | null => {
+        if (!nativeMp4) return null;
+        const tag = nativeMp4.find((t) => t.id === id);
+        if (!tag) return null;
+        return getMetadataValue(tag.value);
+      };
+
+      // Prefer common tags, then fall back to MP4 native tags when needed
+      const artist =
+        getMetadataValue(metadata.common.artist) ??
+        getFromNative("©ART") ??
+        getFromNative("aART");
+
+      const album =
+        getMetadataValue(metadata.common.album) ??
+        getFromNative("©alb");
+
+      const title =
+        getMetadataValue(metadata.common.title) ??
+        getFromNative("©nam");
+
+      const year =
+        getMetadataValue(metadata.common.year) ??
+        getFromNative("©day");
+
+      // Cover art: first try common.picture, then MP4 native 'covr'
+      let picture = metadata.common.picture?.[0] ?? null;
+
+      if (!picture && nativeMp4) {
+        const coverTag = nativeMp4.find((t) => t.id === "covr");
+        if (coverTag) {
+          const raw = Array.isArray(coverTag.value) ? coverTag.value[0] : coverTag.value;
+          if (raw) {
+            // music-metadata usually provides Buffer / Uint8Array-like objects
+            const uint8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw.data || raw);
+            picture = {
+              data: uint8,
+              // Most embedded covers in M4A are JPEG, fallback to generic if unknown
+              format: (raw as any).format || "image/jpeg",
+            };
+          }
+        }
+      }
 
       console.log(`Métadonnées extraites pour ${file.name}:`, {
         artist,
@@ -221,7 +264,8 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
         title,
         year,
         duration: metadata.format?.duration,
-        hasPicture: !!metadata.common.picture?.[0]
+        hasPictureCommon: !!metadata.common.picture?.[0],
+        hasPictureNativeMp4: !!nativeMp4?.find((t) => t.id === "covr"),
       });
 
       return {
@@ -231,23 +275,25 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
           album,
           title,
           year,
-          picture: metadata.common.picture?.[0] ? {
-            data: metadata.common.picture[0].data,
-            format: metadata.common.picture[0].format,
-          } : null,
+          picture: picture
+            ? {
+                data: picture.data,
+                format: picture.format,
+              }
+            : null,
         },
       };
     } catch (error) {
       console.error(`Erreur lecture métadonnées ${file.name}:`, error);
-      return { 
-        format: { duration: 0 }, 
+      return {
+        format: { duration: 0 },
         tags: {
           artist: null,
           album: null,
           title: null,
           year: null,
-          picture: null
-        } 
+          picture: null,
+        },
       };
     }
   };
