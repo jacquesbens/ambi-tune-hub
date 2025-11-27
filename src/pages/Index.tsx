@@ -4,6 +4,7 @@ import { AlbumGrid } from "@/components/AlbumGrid";
 import { AlbumDetail } from "@/components/AlbumDetail";
 import { Player } from "@/components/Player";
 import { ImportFolder } from "@/components/ImportFolder";
+import { TracksList } from "@/components/TracksList";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import { useAlbumStorage } from "@/hooks/useAlbumStorage";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -221,34 +222,10 @@ const Index = () => {
                 {allAlbums.reduce((sum, album) => sum + album.tracks.length, 0)} morceaux dans votre collection
               </p>
               
-              <div className="space-y-1">
-                {allAlbums.flatMap(album => 
-                  album.tracks.map(track => (
-                    <div
-                      key={track.id}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer group"
-                      onClick={() => handleTrackPlay(track)}
-                    >
-                      <img
-                        src={track.cover}
-                        alt={track.title}
-                        className="w-12 h-12 rounded object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                          {track.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {track.artist} • {track.album}
-                        </p>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, "0")}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <TracksList
+                tracks={allAlbums.flatMap(album => album.tracks)}
+                onTrackPlay={handleTrackPlay}
+              />
             </div>
           )}
 

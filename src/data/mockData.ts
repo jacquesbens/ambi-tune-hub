@@ -13,9 +13,11 @@ export interface Track {
   title: string;
   artist: string;
   album: string;
+  albumId: string;
   duration: number;
   cover: string;
   url?: string;
+  genre?: string;
 }
 
 export const mockAlbums: Album[] = [
@@ -31,27 +33,33 @@ export const mockAlbums: Album[] = [
         title: "Get Lucky",
         artist: "Daft Punk",
         album: "Random Access Memories",
+        albumId: "1",
         duration: 367,
         cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
         url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        genre: "Electronic",
       },
       {
         id: "1-2",
         title: "Instant Crush",
         artist: "Daft Punk",
         album: "Random Access Memories",
+        albumId: "1",
         duration: 337,
         cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
         url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        genre: "Electronic",
       },
       {
         id: "1-3",
         title: "Lose Yourself to Dance",
         artist: "Daft Punk",
         album: "Random Access Memories",
+        albumId: "1",
         duration: 353,
         cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
         url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        genre: "Electronic",
       },
     ],
   },
@@ -67,18 +75,22 @@ export const mockAlbums: Album[] = [
         title: "Time",
         artist: "Pink Floyd",
         album: "The Dark Side of the Moon",
+        albumId: "2",
         duration: 413,
         cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500",
         url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        genre: "Rock",
       },
       {
         id: "2-2",
         title: "Money",
         artist: "Pink Floyd",
         album: "The Dark Side of the Moon",
+        albumId: "2",
         duration: 382,
         cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500",
         url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+        genre: "Rock",
       },
     ],
   },
@@ -153,6 +165,8 @@ export const mockCurrentTrack: Track = {
   title: "Get Lucky",
   artist: "Daft Punk",
   album: "Random Access Memories",
+  albumId: "1",
   duration: 367,
   cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+  genre: "Electronic",
 };

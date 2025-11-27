@@ -5,9 +5,11 @@ interface Track {
   title: string;
   artist: string;
   album: string;
+  albumId: string;
   cover: string;
   duration: number;
   url?: string;
+  genre?: string;
 }
 
 export const useAudioPlayer = () => {
