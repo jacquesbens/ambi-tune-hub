@@ -8,6 +8,9 @@ interface FolderInfo {
 
 const STORAGE_KEY = "imported_folders_history";
 
+// Map to store directory handles (not persisted in localStorage due to security)
+const directoryHandles = new Map<string, FileSystemDirectoryHandle>();
+
 export const useFolderHistory = () => {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
 
@@ -22,7 +25,12 @@ export const useFolderHistory = () => {
     }
   }, []);
 
-  const addFolder = (name: string, fileCount: number) => {
+  const addFolder = (name: string, fileCount: number, handle?: FileSystemDirectoryHandle) => {
+    // Store the directory handle if provided
+    if (handle) {
+      directoryHandles.set(name, handle);
+    }
+
     const newFolder: FolderInfo = {
       name,
       addedAt: new Date().toISOString(),
@@ -51,6 +59,7 @@ export const useFolderHistory = () => {
   };
 
   const removeFolder = (name: string) => {
+    directoryHandles.delete(name);
     setFolders((prev) => {
       const updated = prev.filter(f => f.name !== name);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -59,9 +68,14 @@ export const useFolderHistory = () => {
   };
 
   const clearHistory = () => {
+    directoryHandles.clear();
     setFolders([]);
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  return { folders, addFolder, removeFolder, clearHistory };
+  const getFolderHandle = (name: string): FileSystemDirectoryHandle | undefined => {
+    return directoryHandles.get(name);
+  };
+
+  return { folders, addFolder, removeFolder, clearHistory, getFolderHandle };
 };

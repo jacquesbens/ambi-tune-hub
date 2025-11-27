@@ -23,9 +23,9 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reindexInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { folders, addFolder, removeFolder } = useFolderHistory();
+  const { folders, addFolder, removeFolder, getFolderHandle } = useFolderHistory();
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isReindex = false) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isReindex = false, directoryHandle?: FileSystemDirectoryHandle) => {
     const files = Array.from(event.target.files || []);
     
     if (files.length === 0) {
@@ -34,9 +34,10 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
 
     // Extract folder name from first file path
     const firstFile = files[0];
-    const folderName = firstFile.webkitRelativePath 
-      ? firstFile.webkitRelativePath.split('/')[0] 
-      : "Fichiers sélectionnés";
+    const folderName = directoryHandle?.name || 
+      (firstFile.webkitRelativePath 
+        ? firstFile.webkitRelativePath.split('/')[0] 
+        : "Fichiers sélectionnés");
 
     toast({
       title: isReindex ? "Ré-indexation en cours" : "Import en cours",
@@ -50,7 +51,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
         // Ré-indexation: compare et met à jour
         const updatedAlbums = reindexAlbums(currentAlbums, albums, folderName);
         onUpdateAlbums(updatedAlbums);
-        addFolder(folderName, files.length);
+        addFolder(folderName, files.length, directoryHandle);
         
         toast({
           title: "Ré-indexation terminée",
@@ -58,7 +59,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
         });
       } else if (albums.length > 0) {
         // Import normal
-        addFolder(folderName, files.length);
+        addFolder(folderName, files.length, directoryHandle);
         onImport(albums);
         
         toast({
@@ -87,6 +88,93 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
     }
     if (reindexInputRef.current) {
       reindexInputRef.current.value = "";
+    }
+  };
+
+  const handleReindexFolder = async (folderName: string) => {
+    const handle = getFolderHandle(folderName);
+    
+    if (!handle) {
+      // Fallback: demander à l'utilisateur de sélectionner le dossier
+      toast({
+        title: "Ré-indexation",
+        description: `Sélectionnez à nouveau le dossier "${folderName}"`,
+      });
+      reindexInputRef.current?.click();
+      return;
+    }
+
+    try {
+      // Vérifier les permissions (File System Access API)
+      const handleWithPermission = handle as any;
+      const permission = await handleWithPermission.queryPermission({ mode: 'read' });
+      if (permission !== 'granted') {
+        const newPermission = await handleWithPermission.requestPermission({ mode: 'read' });
+        if (newPermission !== 'granted') {
+          toast({
+            title: "Permission refusée",
+            description: "Accès au dossier refusé. Veuillez le sélectionner à nouveau.",
+            variant: "destructive",
+          });
+          reindexInputRef.current?.click();
+          return;
+        }
+      }
+
+      // Lire tous les fichiers du dossier
+      const files: File[] = [];
+      await readDirectoryRecursively(handle, files);
+
+      if (files.length === 0) {
+        toast({
+          title: "Dossier vide",
+          description: "Aucun fichier trouvé dans le dossier",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Créer un événement fictif pour réutiliser handleFileSelect
+      const mockEvent = {
+        target: {
+          files: files
+        }
+      } as any;
+
+      await handleFileSelect(mockEvent, true, handle);
+    } catch (error) {
+      console.error("Reindex error:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'accéder au dossier. Veuillez le sélectionner à nouveau.",
+        variant: "destructive",
+      });
+      reindexInputRef.current?.click();
+    }
+  };
+
+  const readDirectoryRecursively = async (
+    dirHandle: FileSystemDirectoryHandle,
+    files: File[],
+    path: string = ""
+  ) => {
+    const dirHandleWithIterator = dirHandle as any;
+    for await (const entry of dirHandleWithIterator.values()) {
+      if (entry.kind === 'file') {
+        const file = await entry.getFile();
+        // Add webkitRelativePath to mimic folder selection
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: path ? `${path}/${file.name}` : file.name,
+          writable: false
+        });
+        files.push(file);
+      } else if (entry.kind === 'directory') {
+        await readDirectoryRecursively(
+          entry,
+          files,
+          path ? `${path}/${entry.name}` : entry.name
+        );
+      }
     }
   };
 
@@ -361,7 +449,32 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
       
       <div className="flex gap-4">
         <Button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={async () => {
+            // Try to use File System Access API for better handle storage
+            if ('showDirectoryPicker' in window) {
+              try {
+                const dirHandle = await (window as any).showDirectoryPicker();
+                const files: File[] = [];
+                await readDirectoryRecursively(dirHandle, files, dirHandle.name);
+                
+                if (files.length > 0) {
+                  const mockEvent = {
+                    target: { files }
+                  } as any;
+                  await handleFileSelect(mockEvent, false, dirHandle);
+                }
+              } catch (error) {
+                // User cancelled or error occurred, fallback to input
+                if ((error as any).name !== 'AbortError') {
+                  console.error("Directory picker error:", error);
+                }
+                fileInputRef.current?.click();
+              }
+            } else {
+              // Fallback to traditional file input
+              fileInputRef.current?.click();
+            }
+          }}
           size="lg"
           className="gap-2"
         >
@@ -421,13 +534,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      toast({
-                        title: "Ré-indexation",
-                        description: `Sélectionnez à nouveau le dossier "${folder.name}" pour le ré-indexer`,
-                      });
-                      reindexInputRef.current?.click();
-                    }}
+                    onClick={() => handleReindexFolder(folder.name)}
                     title="Ré-indexer ce dossier"
                   >
                     <RefreshCw className="w-4 h-4" />
