@@ -7,7 +7,7 @@ import { ImportFolder } from "@/components/ImportFolder";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import { useAlbumStorage } from "@/hooks/useAlbumStorage";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
-import { mockAlbums, type Album, type Track } from "@/data/mockData";
+import { type Album, type Track } from "@/data/mockData";
 
 const Index = () => {
   const [activeView, setActiveView] = useState("library");
@@ -17,8 +17,8 @@ const Index = () => {
   const [deletedAlbumIds, setDeletedAlbumIds] = useState<Set<string>>(new Set());
   const audioPlayer = useAudioPlayer();
 
-  // Combine mock and imported albums, excluding deleted ones
-  const allAlbums = [...mockAlbums, ...importedAlbums].filter(
+  // Only use imported albums, excluding deleted ones
+  const allAlbums = importedAlbums.filter(
     album => !deletedAlbumIds.has(album.id)
   );
 
