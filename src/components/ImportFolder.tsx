@@ -236,14 +236,60 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
       const title = getValue(metadata.common.title) || file.name.replace(/\.[^/.]+$/, "");
       const year = Number(getValue(metadata.common.year) || new Date().getFullYear());
 
-      // Pochette
+      // Pochette - essayer plusieurs sources
       let picture: { data: Uint8Array; format: string } | null = null;
+      
+      // Tentative 1: Common picture tag (standard)
       if (metadata.common.picture && metadata.common.picture.length > 0) {
         const pic = metadata.common.picture[0];
         picture = {
           data: new Uint8Array(pic.data),
           format: pic.format || "image/jpeg",
         };
+        console.log(`🎨 Pochette extraite (common): ${pic.format}, ${pic.data.length} bytes`);
+      }
+      
+      // Tentative 2: Native iTunes tags (covr)
+      if (!picture && metadata.native?.iTunes) {
+        const covrTag = metadata.native.iTunes.find((tag: any) => tag.id === 'covr');
+        if (covrTag?.value && typeof covrTag.value === 'object' && 'data' in covrTag.value) {
+          const pic = covrTag.value as { data: Buffer | Uint8Array; format?: string };
+          picture = {
+            data: new Uint8Array(pic.data),
+            format: pic.format || "image/jpeg",
+          };
+          console.log(`🎨 Pochette extraite (iTunes covr): ${pic.format || 'image/jpeg'}, ${pic.data.length} bytes`);
+        }
+      }
+      
+      // Tentative 3: Parcourir tous les tags natifs pour trouver une image
+      if (!picture && metadata.native) {
+        for (const [tagType, tags] of Object.entries(metadata.native)) {
+          if (Array.isArray(tags)) {
+            const pictureTag = tags.find((tag: any) => {
+              const id = String(tag.id || "").toLowerCase();
+              return id.includes('pic') || id.includes('covr') || id.includes('apic');
+            });
+            
+            if (pictureTag?.value && typeof pictureTag.value === 'object' && 'data' in pictureTag.value) {
+              const pic = pictureTag.value as { data: Buffer | Uint8Array; format?: string };
+              picture = {
+                data: new Uint8Array(pic.data),
+                format: pic.format || "image/jpeg",
+              };
+              console.log(`🎨 Pochette extraite (${tagType} ${pictureTag.id}): ${pic.format || 'image/jpeg'}, ${pic.data.length} bytes`);
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!picture) {
+        console.warn(`⚠️ Aucune pochette trouvée pour ${file.name}`);
+        console.log('📋 Tags disponibles:', {
+          commonPicture: metadata.common.picture?.length || 0,
+          nativeTags: metadata.native ? Object.keys(metadata.native) : []
+        });
       }
 
       console.log(`📊 Métadonnées finales pour ${file.name}:`, {
