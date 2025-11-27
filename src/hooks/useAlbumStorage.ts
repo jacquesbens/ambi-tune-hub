@@ -23,8 +23,11 @@ export const useAlbumStorage = () => {
   };
 
   const addAlbums = (newAlbums: Album[]) => {
-    const updated = [...albums, ...newAlbums];
-    saveAlbums(updated);
+    setAlbums(prev => {
+      const updated = [...prev, ...newAlbums];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const clearAlbums = () => {
