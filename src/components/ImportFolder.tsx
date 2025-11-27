@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useFolderHistory } from "@/hooks/useFolderHistory";
 import { Album, Track } from "@/data/mockData";
-import jsmediatags from "jsmediatags";
+import { parseBlob } from "music-metadata";
 import {
   Card,
   CardContent,
@@ -176,105 +176,82 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
   };
 
   const readMetadata = async (file: File): Promise<any> => {
-    return new Promise((resolve) => {
+    try {
       console.log(
-        `Lecture métadonnées (jsmediatags) pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`
+        `Lecture métadonnées (music-metadata) pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`
       );
 
-      jsmediatags.read(file, {
-        onSuccess: (tag) => {
-          try {
-            console.log("📝 Tags bruts jsmediatags:", tag);
-
-            const getValue = (value: any): string | number | null => {
-              if (value == null) return null;
-              if (Array.isArray(value)) return getValue(value[0]);
-              if (typeof value === "string" || typeof value === "number") {
-                const s = String(value).trim();
-                return s ? s : null;
-              }
-              if (typeof value === "object" && "data" in value && "text" in value) {
-                return getValue((value as any).text);
-              }
-              return null;
-            };
-
-            const tags = tag.tags || {};
-            const artist =
-              getValue(tags.artist) ||
-              getValue(tags.TPE1) ||
-              getValue(tags.TPE2) ||
-              "Artiste inconnu";
-            const album =
-              getValue(tags.album) ||
-              getValue(tags.TALB) ||
-              "Album inconnu";
-            const title =
-              getValue(tags.title) ||
-              getValue(tags.TIT2) ||
-              file.name.replace(/\.[^/.]+$/, "");
-            const year =
-              Number(getValue(tags.year) || getValue(tags.TYER) || new Date().getFullYear());
-
-            let picture: { data: Uint8Array; format: string } | null = null;
-            if (tags.picture) {
-              const pic = tags.picture as {
-                data: number[] | Uint8Array;
-                format: string;
-              };
-              const dataArray =
-                pic.data instanceof Uint8Array ? pic.data : new Uint8Array(pic.data as number[]);
-              picture = { data: dataArray, format: pic.format || "image/jpeg" };
-            }
-
-            console.log(`📊 Métadonnées finales (jsmediatags) pour ${file.name}:`, {
-              artist,
-              album,
-              title,
-              year,
-              hasPicture: !!picture,
-              pictureFormat: picture?.format,
-            });
-
-            resolve({
-              format: { duration: 0 },
-              tags: {
-                artist,
-                album,
-                title,
-                year,
-                picture,
-              },
-            });
-          } catch (e) {
-            console.error("Erreur traitement tags jsmediatags:", e);
-            resolve({
-              format: { duration: 0 },
-              tags: {
-                artist: null,
-                album: null,
-                title: null,
-                year: null,
-                picture: null,
-              },
-            });
-          }
-        },
-        onError: (error) => {
-          console.error(`Erreur lecture métadonnées jsmediatags ${file.name}:`, error);
-          resolve({
-            format: { duration: 0 },
-            tags: {
-              artist: null,
-              album: null,
-              title: null,
-              year: null,
-              picture: null,
-            },
-          });
-        },
+      const metadata = await parseBlob(file, {
+        skipCovers: false,
+        duration: true,
       });
-    });
+
+      console.log("📦 Format détecté:", metadata.format);
+      console.log("📝 Common tags:", metadata.common);
+      console.log("🏷️ Native tags:", metadata.native);
+
+      // Helper pour extraire valeur primitive
+      const getValue = (value: any): string | number | null => {
+        if (value == null) return null;
+        if (Array.isArray(value)) return getValue(value[0]);
+        if (typeof value === "string" || typeof value === "number") {
+          const s = String(value).trim();
+          return s && s.toLowerCase() !== "undefined" ? s : null;
+        }
+        if (typeof value === "object" && "value" in value) {
+          return getValue((value as any).value);
+        }
+        return null;
+      };
+
+      const artist = getValue(metadata.common.artist) || "Artiste inconnu";
+      const album = getValue(metadata.common.album) || "Album inconnu";
+      const title = getValue(metadata.common.title) || file.name.replace(/\.[^/.]+$/, "");
+      const year = Number(getValue(metadata.common.year) || new Date().getFullYear());
+
+      // Pochette
+      let picture: { data: Uint8Array; format: string } | null = null;
+      if (metadata.common.picture && metadata.common.picture.length > 0) {
+        const pic = metadata.common.picture[0];
+        picture = {
+          data: new Uint8Array(pic.data),
+          format: pic.format || "image/jpeg",
+        };
+      }
+
+      console.log(`📊 Métadonnées finales pour ${file.name}:`, {
+        artist,
+        album,
+        title,
+        year,
+        duration: metadata.format?.duration,
+        hasPicture: !!picture,
+        pictureFormat: picture?.format,
+      });
+
+      return {
+        format: metadata.format,
+        tags: {
+          artist,
+          album,
+          title,
+          year,
+          picture,
+        },
+      };
+    } catch (error) {
+      console.error(`Erreur lecture métadonnées ${file.name}:`, error);
+      return {
+        format: { duration: 0 },
+        tags: {
+          artist: null,
+          album: null,
+          title: null,
+          year: null,
+          picture: null,
+        },
+      };
+    }
   };
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
