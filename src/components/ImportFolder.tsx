@@ -178,11 +178,29 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
   const readMetadata = async (file: File): Promise<any> => {
     try {
       console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`);
-      const metadata = await musicMetadata.parseBlob(file, {
-        skipCovers: false,
-        includeChapters: false,
-        duration: true,
-      });
+
+      // For some containers (like M4A/MP4), the browser mime type (ex: audio/x-m4a)
+      // is not recognized by music-metadata. We normalize it explicitly so that
+      // the MP4 parser is actually used.
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let mimeType: string | undefined = file.type || undefined;
+
+      if (ext === "m4a" || ext === "mp4" || file.type === "audio/x-m4a") {
+        mimeType = "audio/mp4";
+      }
+
+      console.log("→ Mime type utilisé pour l'analyse:", mimeType);
+
+      const metadata = await musicMetadata.parseBlob(
+        file,
+        {
+          // TS typings don't expose mimeType but the library supports it at runtime
+          mimeType,
+          skipCovers: false,
+          includeChapters: false,
+          duration: true,
+        } as any
+      );
 
       // Log complete structure with more detail
       console.log(`📦 Format:`, metadata.format);
