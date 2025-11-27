@@ -1,4 +1,4 @@
-import { Home, Library, Search, Settings } from "lucide-react";
+import { Home, Library, Search, Settings, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -10,6 +10,7 @@ interface SidebarProps {
 const menuItems = [
   { id: "home", label: "Accueil", icon: Home },
   { id: "library", label: "Albums", icon: Library },
+  { id: "tracks", label: "Morceaux", icon: Music },
   { id: "search", label: "Recherche", icon: Search },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
