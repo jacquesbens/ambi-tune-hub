@@ -177,7 +177,7 @@ const Index = () => {
               ) : (
                 <>
                   <div className="p-8 pb-4">
-                    <h2 className="text-4xl font-bold text-foreground mb-2">Bibliothèque</h2>
+                    <h2 className="text-4xl font-bold text-foreground mb-2">Albums</h2>
                     <p className="text-xl text-muted-foreground">
                       {allAlbums.length} albums dans votre collection
                     </p>
