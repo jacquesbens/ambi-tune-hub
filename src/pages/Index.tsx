@@ -13,7 +13,7 @@ const Index = () => {
   const [activeView, setActiveView] = useState("library");
   const [navigationMode, setNavigationMode] = useState<"sidebar" | "content" | "player">("sidebar");
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const { albums: importedAlbums, addAlbums, removeAlbum, removeTrack, updateTrack } = useAlbumStorage();
+  const { albums: importedAlbums, addAlbums, saveAlbums, removeAlbum, removeTrack, updateTrack } = useAlbumStorage();
   const [deletedAlbumIds, setDeletedAlbumIds] = useState<Set<string>>(new Set());
   const audioPlayer = useAudioPlayer();
 
@@ -218,7 +218,11 @@ const Index = () => {
                   <p className="text-muted-foreground mb-4">
                     Gérez les dossiers contenant votre musique
                   </p>
-                  <ImportFolder onImport={addAlbums} />
+                  <ImportFolder 
+                    onImport={addAlbums}
+                    currentAlbums={importedAlbums}
+                    onUpdateAlbums={saveAlbums}
+                  />
                 </div>
               </div>
             </div>
