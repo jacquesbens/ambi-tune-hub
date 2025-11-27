@@ -358,11 +358,24 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
     }));
 
     // Fetch missing covers from MusicBrainz
-    console.log('🎨 Recherche des pochettes manquantes via MusicBrainz...');
-    for (const album of albums) {
-      // Check if album is using the default placeholder cover
-      if (album.cover.includes('unsplash.com')) {
-        console.log(`🔍 Recherche pochette pour: ${album.artist} - ${album.title}`);
+    const albumsWithMissingCovers = albums.filter(album => 
+      album.cover.includes('unsplash.com')
+    );
+    
+    if (albumsWithMissingCovers.length > 0) {
+      console.log(`🎨 Recherche de ${albumsWithMissingCovers.length} pochettes manquantes via MusicBrainz...`);
+      
+      let processedCount = 0;
+      for (const album of albumsWithMissingCovers) {
+        processedCount++;
+        console.log(`🔍 [${processedCount}/${albumsWithMissingCovers.length}] Recherche pochette pour: ${album.artist} - ${album.title}`);
+        
+        // Update toast with progress
+        toast({
+          title: "Recherche des pochettes",
+          description: `${processedCount}/${albumsWithMissingCovers.length}: ${album.artist} - ${album.title}`,
+        });
+        
         try {
           const { data, error } = await supabase.functions.invoke('fetch-album-cover', {
             body: { artist: album.artist, album: album.title }
@@ -387,6 +400,13 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
           console.error(`❌ Erreur inattendue lors de la récupération de la pochette:`, error);
         }
       }
+      
+      // Final success toast
+      const foundCount = albums.filter(a => !a.cover.includes('unsplash.com')).length;
+      toast({
+        title: "Recherche terminée",
+        description: `${foundCount} pochette(s) trouvée(s) sur ${albums.length} albums`,
+      });
     }
 
     return albums;
