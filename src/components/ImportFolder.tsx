@@ -320,6 +320,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
 
     // Group tracks by album
     const albumsMap = new Map<string, {
+      id: string;
       artist: string;
       album: string;
       year: number;
@@ -355,7 +356,9 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       const albumKey = `${artist}-${albumName}`;
       
       if (!albumsMap.has(albumKey)) {
+        const albumId = `album-${Date.now()}-${Math.random()}`;
         albumsMap.set(albumKey, {
+          id: albumId,
           artist,
           album: albumName,
           year: typeof year === 'string' ? parseInt(year) : year,
@@ -366,14 +369,17 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       }
 
       const albumData = albumsMap.get(albumKey)!;
+      const genre = metadata.tags?.genre?.[0] || metadata.tags?.genre;
       albumData.tracks.push({
         id: `track-${Date.now()}-${Math.random()}`,
         title,
         artist,
         album: albumName,
+        albumId: albumData.id,
         duration: metadata.format?.duration || 0,
         cover: coverUrl,
         url,
+        genre: typeof genre === 'string' ? genre : undefined,
       });
     });
 
@@ -382,7 +388,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
     const albums: Album[] = [];
     for (const [key, data] of albumsMap.entries()) {
       const album: Album = {
-        id: `album-${Date.now()}-${Math.random()}`,
+        id: data.id,
         title: data.album,
         artist: data.artist,
         cover: data.cover,
