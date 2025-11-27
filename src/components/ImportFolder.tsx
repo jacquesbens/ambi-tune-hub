@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useFolderHistory } from "@/hooks/useFolderHistory";
 import { Album, Track } from "@/data/mockData";
-import * as musicMetadata from "music-metadata-browser";
+import jsmediatags from "jsmediatags";
 import {
   Card,
   CardContent,
@@ -176,179 +176,106 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
   };
 
   const readMetadata = async (file: File): Promise<any> => {
-    try {
-      console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`);
-
-      // For some containers (like M4A/MP4), the browser mime type (ex: audio/x-m4a)
-      // is not recognized by music-metadata. We normalize it explicitly so that
-      // the MP4 parser is actually used.
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      let mimeType: string | undefined = file.type || undefined;
-
-      if (ext === "m4a" || ext === "mp4" || file.type === "audio/x-m4a") {
-        mimeType = "audio/mp4";
-      }
-
-      console.log("→ Mime type utilisé pour l'analyse:", mimeType);
-
-      const metadata = await musicMetadata.parseBlob(
-        file,
-        {
-          // TS typings don't expose mimeType/size but the library supports them at runtime
-          mimeType,
-          size: file.size, // Important for proper parsing according to docs
-          skipCovers: false,
-          includeChapters: false,
-          duration: true,
-        } as any
+    return new Promise((resolve) => {
+      console.log(
+        `Lecture métadonnées (jsmediatags) pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`
       );
 
-      // Log complete structure with more detail
-      console.log(`📦 Format:`, metadata.format);
-      console.log(`📝 Common tags:`, JSON.stringify(metadata.common, null, 2));
-      console.log(`🏷️ Native tags:`, metadata.native);
-      
-      // Log all native tag types available
-      if (metadata.native) {
-        Object.keys(metadata.native).forEach(tagType => {
-          console.log(`  Native [${tagType}]:`, metadata.native[tagType]);
-        });
-      }
+      jsmediatags.read(file, {
+        onSuccess: (tag) => {
+          try {
+            console.log("📝 Tags bruts jsmediatags:", tag);
 
-      // Helper to normalize any value (string | number | array | object) into a primitive
-      const getMetadataValue = (value: any): string | number | null => {
-        if (value == null) return null;
-
-        // If it's an array, take the first meaningful value
-        if (Array.isArray(value)) {
-          return getMetadataValue(value[0]) as string | number | null;
-        }
-
-        // Direct primitive
-        if (typeof value === "string" || typeof value === "number") {
-          const str = String(value).trim();
-          if (!str || str.toLowerCase() === "undefined") return null;
-          return str;
-        }
-
-        // Objects coming from some tag formats: try their `value` field
-        if (typeof value === "object" && "value" in value) {
-          return getMetadataValue((value as any).value) as string | number | null;
-        }
-
-        return null;
-      };
-
-      // Some containers (like MP4/M4A) store useful tags only in native tags
-      // Try multiple native tag types: mp4, iTunes, QuickTime
-      const nativeMp4 = (metadata as any).native?.mp4 as Array<{ id: string; value: any }> | undefined;
-      const nativeItunes = (metadata as any).native?.iTunes as Array<{ id: string; value: any }> | undefined;
-      const nativeAll = [...(nativeMp4 || []), ...(nativeItunes || [])];
-
-      const getFromNative = (id: string): string | number | null => {
-        if (nativeAll.length === 0) return null;
-        const tag = nativeAll.find((t) => t.id === id);
-        if (!tag) return null;
-        return getMetadataValue(tag.value);
-      };
-
-      // Prefer common tags, then fall back to MP4/iTunes native tags when needed
-      const artist =
-        getMetadataValue(metadata.common.artist) ??
-        getFromNative("©ART") ??
-        getFromNative("aART") ??
-        getFromNative("artist");
-
-      const album =
-        getMetadataValue(metadata.common.album) ??
-        getFromNative("©alb") ??
-        getFromNative("album");
-
-      const title =
-        getMetadataValue(metadata.common.title) ??
-        getFromNative("©nam") ??
-        getFromNative("title");
-
-      const year =
-        getMetadataValue(metadata.common.year) ??
-        getFromNative("©day") ??
-        getFromNative("year");
-
-      // Cover art: first try common.picture, then MP4/iTunes native 'covr'
-      let picture = metadata.common.picture?.[0] ?? null;
-
-      if (!picture && nativeAll.length > 0) {
-        const coverTag = nativeAll.find((t) => t.id === "covr" || t.id === "cover");
-        if (coverTag) {
-          console.log(`🖼️ Cover tag trouvé:`, coverTag);
-          const raw = Array.isArray(coverTag.value) ? coverTag.value[0] : coverTag.value;
-          if (raw) {
-            try {
-              // Handle different data formats
-              let uint8: Uint8Array;
-              if (raw instanceof Uint8Array) {
-                uint8 = raw;
-              } else if (raw.data) {
-                uint8 = raw.data instanceof Uint8Array ? raw.data : new Uint8Array(raw.data);
-              } else if (ArrayBuffer.isView(raw)) {
-                uint8 = new Uint8Array(raw.buffer);
-              } else {
-                uint8 = new Uint8Array(raw);
+            const getValue = (value: any): string | number | null => {
+              if (value == null) return null;
+              if (Array.isArray(value)) return getValue(value[0]);
+              if (typeof value === "string" || typeof value === "number") {
+                const s = String(value).trim();
+                return s ? s : null;
               }
-              
-              picture = {
-                data: uint8 as any,
-                format: raw.format || raw.type || "image/jpeg",
-              } as any;
-              console.log(`✅ Pochette extraite: ${uint8.length} bytes, format: ${picture.format}`);
-            } catch (e) {
-              console.error(`❌ Erreur extraction pochette:`, e);
+              if (typeof value === "object" && "data" in value && "text" in value) {
+                return getValue((value as any).text);
+              }
+              return null;
+            };
+
+            const tags = tag.tags || {};
+            const artist =
+              getValue(tags.artist) ||
+              getValue(tags.TPE1) ||
+              getValue(tags.TPE2) ||
+              "Artiste inconnu";
+            const album =
+              getValue(tags.album) ||
+              getValue(tags.TALB) ||
+              "Album inconnu";
+            const title =
+              getValue(tags.title) ||
+              getValue(tags.TIT2) ||
+              file.name.replace(/\.[^/.]+$/, "");
+            const year =
+              Number(getValue(tags.year) || getValue(tags.TYER) || new Date().getFullYear());
+
+            let picture: { data: Uint8Array; format: string } | null = null;
+            if (tags.picture) {
+              const pic = tags.picture as {
+                data: number[] | Uint8Array;
+                format: string;
+              };
+              const dataArray =
+                pic.data instanceof Uint8Array ? pic.data : new Uint8Array(pic.data as number[]);
+              picture = { data: dataArray, format: pic.format || "image/jpeg" };
             }
+
+            console.log(`📊 Métadonnées finales (jsmediatags) pour ${file.name}:`, {
+              artist,
+              album,
+              title,
+              year,
+              hasPicture: !!picture,
+              pictureFormat: picture?.format,
+            });
+
+            resolve({
+              format: { duration: 0 },
+              tags: {
+                artist,
+                album,
+                title,
+                year,
+                picture,
+              },
+            });
+          } catch (e) {
+            console.error("Erreur traitement tags jsmediatags:", e);
+            resolve({
+              format: { duration: 0 },
+              tags: {
+                artist: null,
+                album: null,
+                title: null,
+                year: null,
+                picture: null,
+              },
+            });
           }
-        }
-      }
-
-      console.log(`📊 Métadonnées finales pour ${file.name}:`, {
-        artist,
-        album,
-        title,
-        year,
-        duration: metadata.format?.duration,
-        hasPictureCommon: !!metadata.common.picture?.[0],
-        hasPictureNative: !!picture,
-        pictureFormat: picture?.format,
+        },
+        onError: (error) => {
+          console.error(`Erreur lecture métadonnées jsmediatags ${file.name}:`, error);
+          resolve({
+            format: { duration: 0 },
+            tags: {
+              artist: null,
+              album: null,
+              title: null,
+              year: null,
+              picture: null,
+            },
+          });
+        },
       });
-
-      return {
-        format: metadata.format,
-        tags: {
-          artist,
-          album,
-          title,
-          year,
-          picture: picture
-            ? {
-                data: picture.data,
-                format: picture.format,
-              }
-            : null,
-        },
-      };
-    } catch (error) {
-      console.error(`Erreur lecture métadonnées ${file.name}:`, error);
-      return {
-        format: { duration: 0 },
-        tags: {
-          artist: null,
-          album: null,
-          title: null,
-          year: null,
-          picture: null,
-        },
-      };
-    }
+    });
   };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
