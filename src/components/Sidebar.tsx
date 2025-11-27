@@ -9,7 +9,7 @@ interface SidebarProps {
 
 const menuItems = [
   { id: "home", label: "Accueil", icon: Home },
-  { id: "library", label: "Bibliothèque", icon: Library },
+  { id: "library", label: "Albums", icon: Library },
   { id: "search", label: "Recherche", icon: Search },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
