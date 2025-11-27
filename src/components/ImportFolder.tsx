@@ -29,9 +29,10 @@ interface ImportFolderProps {
   currentAlbums: Album[];
   onUpdateAlbums: (albums: Album[]) => void;
   onRemoveFolderAlbums: (folderName: string) => void;
+  onProgressiveImport?: (album: Album) => void;
 }
 
-export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemoveFolderAlbums }: ImportFolderProps) => {
+export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemoveFolderAlbums, onProgressiveImport }: ImportFolderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reindexInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -58,7 +59,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
     });
 
     try {
-      const albums = await processFiles(files, folderName);
+      const albums = await processFiles(files, folderName, onProgressiveImport);
       
       if (isReindex) {
         // Ré-indexation: compare et met à jour
@@ -73,7 +74,12 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       } else if (albums.length > 0) {
         // Import normal
         addFolder(folderName, files.length, directoryHandle);
-        onImport(albums);
+        
+        // Only call onImport if progressive import wasn't used
+        // (progressive import already added albums one by one)
+        if (!onProgressiveImport) {
+          onImport(albums);
+        }
         
         toast({
           title: "Import réussi",
@@ -272,7 +278,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
     return [...otherAlbums, ...newAlbums];
   };
 
-  const processFiles = async (files: File[], sourceFolderName?: string): Promise<Album[]> => {
+  const processFiles = async (files: File[], sourceFolderName?: string, onProgress?: (album: Album) => void): Promise<Album[]> => {
     const audioFiles = files.filter(file => {
       const isAudioType = file.type.startsWith("audio/") || 
         file.type === "audio/mp4" || 
@@ -368,16 +374,25 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       });
     });
 
-    // Convert map to albums array
-    const albums: Album[] = Array.from(albumsMap.entries()).map(([key, data]) => ({
-      id: `album-${Date.now()}-${Math.random()}`,
-      title: data.album,
-      artist: data.artist,
-      cover: data.cover,
-      year: data.year,
-      tracks: data.tracks,
-      folderName: data.folderName,
-    }));
+    // Convert map to albums array and emit progressively
+    const albums: Album[] = [];
+    for (const [key, data] of albumsMap.entries()) {
+      const album: Album = {
+        id: `album-${Date.now()}-${Math.random()}`,
+        title: data.album,
+        artist: data.artist,
+        cover: data.cover,
+        year: data.year,
+        tracks: data.tracks,
+        folderName: data.folderName,
+      };
+      albums.push(album);
+      
+      // Emit album progressively if callback provided
+      if (onProgress) {
+        onProgress(album);
+      }
+    }
 
     // Fetch missing covers from MusicBrainz
     const albumsWithMissingCovers = albums.filter(album => 
