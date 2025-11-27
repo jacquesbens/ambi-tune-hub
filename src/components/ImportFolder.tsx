@@ -92,10 +92,38 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
   };
 
   const handleReindexFolder = async (folderName: string) => {
+    console.log(`🔄 Tentative de ré-indexation du dossier: ${folderName}`);
     const handle = getFolderHandle(folderName);
+    console.log(`📁 Handle trouvé:`, handle ? 'Oui' : 'Non');
     
     if (!handle) {
-      // Fallback: demander à l'utilisateur de sélectionner le dossier
+      // Pas de handle stocké - utiliser showDirectoryPicker si disponible
+      if ('showDirectoryPicker' in window) {
+        try {
+          toast({
+            title: "Sélection du dossier",
+            description: `Sélectionnez le dossier "${folderName}" pour le ré-indexer`,
+          });
+          
+          const dirHandle = await (window as any).showDirectoryPicker();
+          const files: File[] = [];
+          await readDirectoryRecursively(dirHandle, files, dirHandle.name);
+          
+          if (files.length > 0) {
+            const mockEvent = { target: { files } } as any;
+            await handleFileSelect(mockEvent, true, dirHandle);
+          }
+          return;
+        } catch (error) {
+          if ((error as any).name === 'AbortError') {
+            console.log('Sélection annulée par l\'utilisateur');
+            return;
+          }
+          console.error("Directory picker error:", error);
+        }
+      }
+      
+      // Fallback: demander avec l'input traditionnel
       toast({
         title: "Ré-indexation",
         description: `Sélectionnez à nouveau le dossier "${folderName}"`,
@@ -105,25 +133,46 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
     }
 
     try {
+      console.log('✅ Utilisation du handle stocké pour ré-indexation automatique');
+      
       // Vérifier les permissions (File System Access API)
       const handleWithPermission = handle as any;
       const permission = await handleWithPermission.queryPermission({ mode: 'read' });
+      console.log(`🔐 Permission actuelle: ${permission}`);
+      
       if (permission !== 'granted') {
         const newPermission = await handleWithPermission.requestPermission({ mode: 'read' });
+        console.log(`🔐 Nouvelle permission: ${newPermission}`);
+        
         if (newPermission !== 'granted') {
           toast({
             title: "Permission refusée",
             description: "Accès au dossier refusé. Veuillez le sélectionner à nouveau.",
             variant: "destructive",
           });
-          reindexInputRef.current?.click();
+          
+          // Redemander la sélection
+          if ('showDirectoryPicker' in window) {
+            const dirHandle = await (window as any).showDirectoryPicker();
+            const files: File[] = [];
+            await readDirectoryRecursively(dirHandle, files, dirHandle.name);
+            
+            if (files.length > 0) {
+              const mockEvent = { target: { files } } as any;
+              await handleFileSelect(mockEvent, true, dirHandle);
+            }
+          } else {
+            reindexInputRef.current?.click();
+          }
           return;
         }
       }
 
       // Lire tous les fichiers du dossier
+      console.log('📂 Lecture du dossier...');
       const files: File[] = [];
       await readDirectoryRecursively(handle, files);
+      console.log(`📄 ${files.length} fichiers trouvés`);
 
       if (files.length === 0) {
         toast({
@@ -149,7 +198,27 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
         description: "Impossible d'accéder au dossier. Veuillez le sélectionner à nouveau.",
         variant: "destructive",
       });
-      reindexInputRef.current?.click();
+      
+      // Redemander la sélection avec l'API moderne si disponible
+      if ('showDirectoryPicker' in window) {
+        try {
+          const dirHandle = await (window as any).showDirectoryPicker();
+          const files: File[] = [];
+          await readDirectoryRecursively(dirHandle, files, dirHandle.name);
+          
+          if (files.length > 0) {
+            const mockEvent = { target: { files } } as any;
+            await handleFileSelect(mockEvent, true, dirHandle);
+          }
+        } catch (pickerError) {
+          if ((pickerError as any).name !== 'AbortError') {
+            console.error("Picker error:", pickerError);
+            reindexInputRef.current?.click();
+          }
+        }
+      } else {
+        reindexInputRef.current?.click();
+      }
     }
   };
 
