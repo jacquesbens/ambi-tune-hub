@@ -1,0 +1,4 @@
+project_id = "mazxarybvzyrjrkakmvo"
+
+[functions.fetch-album-cover]
+verify_jwt = false
