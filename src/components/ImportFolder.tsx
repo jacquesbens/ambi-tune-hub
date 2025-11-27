@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { FolderOpen, Upload, Trash2, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ImportFolderProps {
   onImport: (albums: Album[]) => void;
@@ -26,6 +36,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
   const reindexInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { folders, addFolder, removeFolder, getFolderHandle } = useFolderHistory();
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isReindex = false, directoryHandle?: FileSystemDirectoryHandle) => {
     const files = Array.from(event.target.files || []);
@@ -547,6 +558,23 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       };
     }
   };
+  const handleConfirmDelete = () => {
+    if (folderToDelete) {
+      const albumsInFolder = currentAlbums.filter(album => album.folderName === folderToDelete);
+      const trackCount = albumsInFolder.reduce((sum, album) => sum + album.tracks.length, 0);
+      
+      onRemoveFolderAlbums(folderToDelete);
+      removeFolder(folderToDelete);
+      
+      toast({
+        title: "Dossier supprimé",
+        description: `"${folderToDelete}" et ${albumsInFolder.length} album(s) (${trackCount} titre(s)) ont été supprimés`,
+      });
+      
+      setFolderToDelete(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -675,14 +703,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      onRemoveFolderAlbums(folder.name);
-                      removeFolder(folder.name);
-                      toast({
-                        title: "Dossier supprimé",
-                        description: `"${folder.name}" et tous ses titres ont été supprimés`,
-                      });
-                    }}
+                    onClick={() => setFolderToDelete(folder.name)}
                     title="Supprimer de l'historique et tous les titres"
                   >
                     <Trash2 className="w-4 h-4 text-destructive" />
@@ -693,6 +714,43 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={folderToDelete !== null} onOpenChange={(open) => !open && setFolderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le dossier ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {folderToDelete && (
+                <>
+                  Êtes-vous sûr de vouloir supprimer le dossier <strong>"{folderToDelete}"</strong> ?
+                  <br /><br />
+                  Cette action supprimera :
+                  <ul className="list-disc list-inside mt-2">
+                    <li>
+                      <strong>{currentAlbums.filter(album => album.folderName === folderToDelete).length}</strong> album(s)
+                    </li>
+                    <li>
+                      <strong>
+                        {currentAlbums
+                          .filter(album => album.folderName === folderToDelete)
+                          .reduce((sum, album) => sum + album.tracks.length, 0)}
+                      </strong> titre(s)
+                    </li>
+                  </ul>
+                  <br />
+                  Cette action est irréversible.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
