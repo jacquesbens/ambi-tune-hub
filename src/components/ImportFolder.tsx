@@ -404,23 +404,26 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       }
     }
 
-    // Fetch missing covers from MusicBrainz
+    // Fetch missing covers from MusicBrainz (with rate limiting)
     const albumsWithMissingCovers = albums.filter(album => 
       album.cover.includes('unsplash.com')
     );
     
     if (albumsWithMissingCovers.length > 0) {
-      console.log(`🎨 Recherche de ${albumsWithMissingCovers.length} pochettes manquantes via MusicBrainz...`);
+      console.log(`🎨 ${albumsWithMissingCovers.length} pochettes manquantes - Recherche limitée aux 10 premières...`);
       
+      // Limiter à 10 albums pour éviter de dépasser les quotas
+      const limitedAlbums = albumsWithMissingCovers.slice(0, 10);
       let processedCount = 0;
-      for (const album of albumsWithMissingCovers) {
+      
+      for (const album of limitedAlbums) {
         processedCount++;
-        console.log(`🔍 [${processedCount}/${albumsWithMissingCovers.length}] Recherche pochette pour: ${album.artist} - ${album.title}`);
+        console.log(`🔍 [${processedCount}/${limitedAlbums.length}] Recherche pochette pour: ${album.artist} - ${album.title}`);
         
         // Update toast with progress
         toast({
           title: "Recherche des pochettes",
-          description: `${processedCount}/${albumsWithMissingCovers.length}: ${album.artist} - ${album.title}`,
+          description: `${processedCount}/${limitedAlbums.length}: ${album.artist} - ${album.title}`,
         });
         
         try {
@@ -430,6 +433,15 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
 
           if (error) {
             console.error(`❌ Erreur lors de la récupération de la pochette:`, error);
+            // Si on dépasse le quota, arrêter la recherche
+            if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+              console.log('⚠️ Quota dépassé, arrêt de la recherche de pochettes');
+              toast({
+                title: "Limite atteinte",
+                description: "Recherche de pochettes interrompue (limite API atteinte)",
+              });
+              break;
+            }
             continue;
           }
 
@@ -445,15 +457,33 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
           }
         } catch (error) {
           console.error(`❌ Erreur inattendue lors de la récupération de la pochette:`, error);
+          // Si erreur de quota, arrêter
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (errorMsg.includes('quota') || errorMsg.includes('rate limit')) {
+            console.log('⚠️ Quota dépassé, arrêt de la recherche de pochettes');
+            break;
+          }
+        }
+        
+        // Délai de 1 seconde entre chaque requête pour respecter les limites
+        if (processedCount < limitedAlbums.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       
       // Final success toast
       const foundCount = albums.filter(a => !a.cover.includes('unsplash.com')).length;
-      toast({
-        title: "Recherche terminée",
-        description: `${foundCount} pochette(s) trouvée(s) sur ${albums.length} albums`,
-      });
+      if (albumsWithMissingCovers.length > 10) {
+        toast({
+          title: "Recherche terminée",
+          description: `${foundCount} pochette(s) trouvée(s). ${albumsWithMissingCovers.length - 10} albums ignorés (limite de 10 par import)`,
+        });
+      } else {
+        toast({
+          title: "Recherche terminée",
+          description: `${foundCount} pochette(s) trouvée(s) sur ${albums.length} albums`,
+        });
+      }
     }
 
     return albums;
