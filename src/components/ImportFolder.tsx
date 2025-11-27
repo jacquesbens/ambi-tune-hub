@@ -177,15 +177,24 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
 
   const readMetadata = async (file: File): Promise<any> => {
     try {
-      console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}`);
+      console.log(`Lecture métadonnées pour: ${file.name}, type: ${file.type}, taille: ${file.size} bytes`);
       const metadata = await musicMetadata.parseBlob(file, {
         skipCovers: false,
         includeChapters: false,
+        duration: true,
       });
 
-      // Log the full metadata structure to understand it
-      console.log(`Structure complète métadonnées (common):`, metadata.common);
-      console.log(`Structure complète métadonnées (native):`, metadata.native);
+      // Log complete structure with more detail
+      console.log(`📦 Format:`, metadata.format);
+      console.log(`📝 Common tags:`, JSON.stringify(metadata.common, null, 2));
+      console.log(`🏷️ Native tags:`, metadata.native);
+      
+      // Log all native tag types available
+      if (metadata.native) {
+        Object.keys(metadata.native).forEach(tagType => {
+          console.log(`  Native [${tagType}]:`, metadata.native[tagType]);
+        });
+      }
 
       // Helper to normalize any value (string | number | array | object) into a primitive
       const getMetadataValue = (value: any): string | number | null => {
@@ -212,60 +221,83 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
       };
 
       // Some containers (like MP4/M4A) store useful tags only in native tags
+      // Try multiple native tag types: mp4, iTunes, QuickTime
       const nativeMp4 = (metadata as any).native?.mp4 as Array<{ id: string; value: any }> | undefined;
+      const nativeItunes = (metadata as any).native?.iTunes as Array<{ id: string; value: any }> | undefined;
+      const nativeAll = [...(nativeMp4 || []), ...(nativeItunes || [])];
 
       const getFromNative = (id: string): string | number | null => {
-        if (!nativeMp4) return null;
-        const tag = nativeMp4.find((t) => t.id === id);
+        if (nativeAll.length === 0) return null;
+        const tag = nativeAll.find((t) => t.id === id);
         if (!tag) return null;
         return getMetadataValue(tag.value);
       };
 
-      // Prefer common tags, then fall back to MP4 native tags when needed
+      // Prefer common tags, then fall back to MP4/iTunes native tags when needed
       const artist =
         getMetadataValue(metadata.common.artist) ??
         getFromNative("©ART") ??
-        getFromNative("aART");
+        getFromNative("aART") ??
+        getFromNative("artist");
 
       const album =
         getMetadataValue(metadata.common.album) ??
-        getFromNative("©alb");
+        getFromNative("©alb") ??
+        getFromNative("album");
 
       const title =
         getMetadataValue(metadata.common.title) ??
-        getFromNative("©nam");
+        getFromNative("©nam") ??
+        getFromNative("title");
 
       const year =
         getMetadataValue(metadata.common.year) ??
-        getFromNative("©day");
+        getFromNative("©day") ??
+        getFromNative("year");
 
-      // Cover art: first try common.picture, then MP4 native 'covr'
+      // Cover art: first try common.picture, then MP4/iTunes native 'covr'
       let picture = metadata.common.picture?.[0] ?? null;
 
-      if (!picture && nativeMp4) {
-        const coverTag = nativeMp4.find((t) => t.id === "covr");
+      if (!picture && nativeAll.length > 0) {
+        const coverTag = nativeAll.find((t) => t.id === "covr" || t.id === "cover");
         if (coverTag) {
+          console.log(`🖼️ Cover tag trouvé:`, coverTag);
           const raw = Array.isArray(coverTag.value) ? coverTag.value[0] : coverTag.value;
           if (raw) {
-            // music-metadata usually provides Buffer / Uint8Array-like objects
-            const uint8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw.data || raw);
-            picture = {
-              data: uint8 as any,
-              // Most embedded covers in M4A are JPEG, fallback to generic if unknown
-              format: (raw as any).format || "image/jpeg",
-            } as any;
+            try {
+              // Handle different data formats
+              let uint8: Uint8Array;
+              if (raw instanceof Uint8Array) {
+                uint8 = raw;
+              } else if (raw.data) {
+                uint8 = raw.data instanceof Uint8Array ? raw.data : new Uint8Array(raw.data);
+              } else if (ArrayBuffer.isView(raw)) {
+                uint8 = new Uint8Array(raw.buffer);
+              } else {
+                uint8 = new Uint8Array(raw);
+              }
+              
+              picture = {
+                data: uint8 as any,
+                format: raw.format || raw.type || "image/jpeg",
+              } as any;
+              console.log(`✅ Pochette extraite: ${uint8.length} bytes, format: ${picture.format}`);
+            } catch (e) {
+              console.error(`❌ Erreur extraction pochette:`, e);
+            }
           }
         }
       }
 
-      console.log(`Métadonnées extraites pour ${file.name}:`, {
+      console.log(`📊 Métadonnées finales pour ${file.name}:`, {
         artist,
         album,
         title,
         year,
         duration: metadata.format?.duration,
         hasPictureCommon: !!metadata.common.picture?.[0],
-        hasPictureNativeMp4: !!nativeMp4?.find((t) => t.id === "covr"),
+        hasPictureNative: !!picture,
+        pictureFormat: picture?.format,
       });
 
       return {
