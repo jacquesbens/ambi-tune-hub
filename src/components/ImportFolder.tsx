@@ -94,9 +94,10 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
       }
     } catch (error) {
       console.error("Import error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
       toast({
         title: "Erreur d'import",
-        description: "Une erreur est survenue lors de l'import",
+        description: `Détails: ${errorMessage}`,
         variant: "destructive",
       });
     }
@@ -279,6 +280,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
   };
 
   const processFiles = async (files: File[], sourceFolderName?: string, onProgress?: (album: Album) => void): Promise<Album[]> => {
+    console.log(`📂 Début du traitement de ${files.length} fichiers...`);
     const audioFiles = files.filter(file => {
       const isAudioType = file.type.startsWith("audio/") || 
         file.type === "audio/mp4" || 
@@ -295,6 +297,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
     }> = [];
 
     // Read metadata for all files
+    console.log(`🎵 Traitement de ${audioFiles.length} fichiers audio...`);
     for (const file of audioFiles) {
       try {
         const metadata = await readMetadata(file);
@@ -375,6 +378,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
     });
 
     // Convert map to albums array and emit progressively
+    console.log(`📚 Création de ${albumsMap.size} albums...`);
     const albums: Album[] = [];
     for (const [key, data] of albumsMap.entries()) {
       const album: Album = {
@@ -387,10 +391,16 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemove
         folderName: data.folderName,
       };
       albums.push(album);
+      console.log(`➕ Album créé: ${album.artist} - ${album.title} (${album.tracks.length} pistes)`);
       
       // Emit album progressively if callback provided
       if (onProgress) {
-        onProgress(album);
+        console.log(`📤 Émission progressive de l'album: ${album.title}`);
+        try {
+          onProgress(album);
+        } catch (error) {
+          console.error(`❌ Erreur lors de l'émission progressive:`, error);
+        }
       }
     }
 
