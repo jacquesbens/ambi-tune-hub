@@ -15,15 +15,17 @@ import {
 
 interface ImportFolderProps {
   onImport: (albums: Album[]) => void;
-  onRefreshMetadata?: () => void;
+  currentAlbums: Album[];
+  onUpdateAlbums: (albums: Album[]) => void;
 }
 
-export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps) => {
+export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: ImportFolderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const reindexInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { folders, addFolder, removeFolder } = useFolderHistory();
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isReindex = false) => {
     const files = Array.from(event.target.files || []);
     
     if (files.length === 0) {
@@ -37,18 +39,28 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
       : "Fichiers sélectionnés";
 
     toast({
-      title: "Import en cours",
+      title: isReindex ? "Ré-indexation en cours" : "Import en cours",
       description: `Traitement de ${files.length} fichiers depuis "${folderName}"...`,
     });
 
     try {
       const albums = await processFiles(files);
       
-      if (albums.length > 0) {
-        // Add folder to history
+      if (isReindex) {
+        // Ré-indexation: compare et met à jour
+        const updatedAlbums = reindexAlbums(currentAlbums, albums, folderName);
+        onUpdateAlbums(updatedAlbums);
         addFolder(folderName, files.length);
         
+        toast({
+          title: "Ré-indexation terminée",
+          description: `"${folderName}" a été mis à jour`,
+        });
+      } else if (albums.length > 0) {
+        // Import normal
+        addFolder(folderName, files.length);
         onImport(albums);
+        
         toast({
           title: "Import réussi",
           description: `${albums.length} albums ajoutés depuis "${folderName}"`,
@@ -73,6 +85,21 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    if (reindexInputRef.current) {
+      reindexInputRef.current.value = "";
+    }
+  };
+
+  const reindexAlbums = (current: Album[], newAlbums: Album[], folderName: string): Album[] => {
+    // Filtre les albums qui ne proviennent pas de ce dossier
+    const otherAlbums = current.filter(album => {
+      // On suppose qu'un album appartient au dossier s'il a des tracks avec des URLs blob
+      // et que le nom d'album ou artiste correspond
+      return !album.tracks.some(track => track.url.startsWith('blob:'));
+    });
+
+    // Combine avec les nouveaux albums du dossier
+    return [...otherAlbums, ...newAlbums];
   };
 
   const processFiles = async (files: File[]): Promise<Album[]> => {
@@ -272,7 +299,16 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
         type="file"
         multiple
         accept="audio/*,.mp3,.m4a,.wav,.flac,.ogg,.aac,audio/mp4,audio/x-m4a,audio/m4a"
-        onChange={handleFileSelect}
+        onChange={(e) => handleFileSelect(e, false)}
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as any)}
+      />
+      <input
+        ref={reindexInputRef}
+        type="file"
+        multiple
+        accept="audio/*,.mp3,.m4a,.wav,.flac,.ogg,.aac,audio/mp4,audio/x-m4a,audio/m4a"
+        onChange={(e) => handleFileSelect(e, true)}
         className="hidden"
         {...({ webkitdirectory: "", directory: "" } as any)}
       />
@@ -320,7 +356,7 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
               Dossiers récemment importés
             </CardTitle>
             <CardDescription>
-              Ré-importez facilement vos dossiers pour rafraîchir les métadonnées
+              Ré-indexez vos dossiers pour synchroniser les modifications
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -341,11 +377,12 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
                     variant="ghost"
                     onClick={() => {
                       toast({
-                        title: "Ré-import du dossier",
-                        description: `Veuillez sélectionner à nouveau le dossier "${folder.name}"`,
+                        title: "Ré-indexation",
+                        description: `Sélectionnez à nouveau le dossier "${folder.name}" pour le ré-indexer`,
                       });
-                      fileInputRef.current?.click();
+                      reindexInputRef.current?.click();
                     }}
+                    title="Ré-indexer ce dossier"
                   >
                     <RefreshCw className="w-4 h-4" />
                   </Button>
@@ -353,6 +390,7 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
                     size="sm"
                     variant="ghost"
                     onClick={() => removeFolder(folder.name)}
+                    title="Supprimer de l'historique"
                   >
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
