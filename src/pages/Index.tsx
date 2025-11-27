@@ -17,6 +17,10 @@ const Index = () => {
   const [deletedAlbumIds, setDeletedAlbumIds] = useState<Set<string>>(new Set());
   const audioPlayer = useAudioPlayer();
 
+  const handleProgressiveImport = (album: Album) => {
+    addAlbums([album]);
+  };
+
   // Only use imported albums, excluding deleted ones
   const allAlbums = importedAlbums.filter(
     album => !deletedAlbumIds.has(album.id)
@@ -273,6 +277,7 @@ const Index = () => {
                     currentAlbums={importedAlbums}
                     onUpdateAlbums={saveAlbums}
                     onRemoveFolderAlbums={handleRemoveFolderAlbums}
+                    onProgressiveImport={handleProgressiveImport}
                   />
                 </div>
               </div>
