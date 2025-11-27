@@ -18,9 +18,10 @@ interface ImportFolderProps {
   onImport: (albums: Album[]) => void;
   currentAlbums: Album[];
   onUpdateAlbums: (albums: Album[]) => void;
+  onRemoveFolderAlbums: (folderName: string) => void;
 }
 
-export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: ImportFolderProps) => {
+export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums, onRemoveFolderAlbums }: ImportFolderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reindexInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -46,7 +47,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
     });
 
     try {
-      const albums = await processFiles(files);
+      const albums = await processFiles(files, folderName);
       
       if (isReindex) {
         // Ré-indexation: compare et met à jour
@@ -260,7 +261,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
     return [...otherAlbums, ...newAlbums];
   };
 
-  const processFiles = async (files: File[]): Promise<Album[]> => {
+  const processFiles = async (files: File[], sourceFolderName?: string): Promise<Album[]> => {
     const audioFiles = files.filter(file => {
       const isAudioType = file.type.startsWith("audio/") || 
         file.type === "audio/mp4" || 
@@ -290,6 +291,13 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
 
     console.log(`Total fichiers traités: ${tracksData.length}/${audioFiles.length}`);
 
+    // Extract folder name from files
+    const firstFile = audioFiles[0];
+    const extractedFolderName = sourceFolderName || 
+      (firstFile && (firstFile as any).webkitRelativePath 
+        ? (firstFile as any).webkitRelativePath.split("/")[0] 
+        : "Fichiers importés");
+
     // Group tracks by album
     const albumsMap = new Map<string, {
       artist: string;
@@ -297,11 +305,12 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
       year: number;
       cover: string;
       tracks: Track[];
+      folderName: string;
     }>();
 
     tracksData.forEach(({ file, metadata, url }) => {
       const relativePath = (file as any).webkitRelativePath as string | undefined;
-      const folderName = relativePath ? relativePath.split("/")[0] : null;
+      const folderName = relativePath ? relativePath.split("/")[0] : extractedFolderName;
 
       const cleanTitleFromFilename = (name: string) => {
         const base = name.replace(/\.[^/.]+$/, "");
@@ -332,6 +341,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
           year: typeof year === 'string' ? parseInt(year) : year,
           cover: coverUrl,
           tracks: [],
+          folderName: extractedFolderName,
         });
       }
 
@@ -355,6 +365,7 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
       cover: data.cover,
       year: data.year,
       tracks: data.tracks,
+      folderName: data.folderName,
     }));
 
     // Fetch missing covers from MusicBrainz
@@ -664,8 +675,15 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => removeFolder(folder.name)}
-                    title="Supprimer de l'historique"
+                    onClick={() => {
+                      onRemoveFolderAlbums(folder.name);
+                      removeFolder(folder.name);
+                      toast({
+                        title: "Dossier supprimé",
+                        description: `"${folder.name}" et tous ses titres ont été supprimés`,
+                      });
+                    }}
+                    title="Supprimer de l'historique et tous les titres"
                   >
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
