@@ -194,8 +194,9 @@ export const ImportFolder = ({ onImport, onRefreshMetadata }: ImportFolderProps)
       const metadata = await musicMetadata.parseBlob(
         file,
         {
-          // TS typings don't expose mimeType but the library supports it at runtime
+          // TS typings don't expose mimeType/size but the library supports them at runtime
           mimeType,
+          size: file.size, // Important for proper parsing according to docs
           skipCovers: false,
           includeChapters: false,
           duration: true,
