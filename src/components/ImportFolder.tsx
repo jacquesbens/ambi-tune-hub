@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFolderHistory } from "@/hooks/useFolderHistory";
 import { Album, Track } from "@/data/mockData";
 import { parseBlob } from "music-metadata";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
   CardContent,
@@ -355,6 +356,38 @@ export const ImportFolder = ({ onImport, currentAlbums, onUpdateAlbums }: Import
       year: data.year,
       tracks: data.tracks,
     }));
+
+    // Fetch missing covers from MusicBrainz
+    console.log('🎨 Recherche des pochettes manquantes via MusicBrainz...');
+    for (const album of albums) {
+      // Check if album is using the default placeholder cover
+      if (album.cover.includes('unsplash.com')) {
+        console.log(`🔍 Recherche pochette pour: ${album.artist} - ${album.title}`);
+        try {
+          const { data, error } = await supabase.functions.invoke('fetch-album-cover', {
+            body: { artist: album.artist, album: album.title }
+          });
+
+          if (error) {
+            console.error(`❌ Erreur lors de la récupération de la pochette:`, error);
+            continue;
+          }
+
+          if (data?.coverUrl) {
+            console.log(`✅ Pochette trouvée pour: ${album.artist} - ${album.title}`);
+            // Update album and all its tracks with the new cover
+            album.cover = data.coverUrl;
+            album.tracks.forEach(track => {
+              track.cover = data.coverUrl;
+            });
+          } else {
+            console.log(`⚠️ Aucune pochette trouvée pour: ${album.artist} - ${album.title}`);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur inattendue lors de la récupération de la pochette:`, error);
+        }
+      }
+    }
 
     return albums;
   };
