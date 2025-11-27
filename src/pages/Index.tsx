@@ -137,6 +137,18 @@ const Index = () => {
     }
   };
 
+  const handleRemoveFolderAlbums = (folderName: string) => {
+    console.log(`🗑️ Suppression des albums du dossier: ${folderName}`);
+    const updatedAlbums = importedAlbums.filter(album => album.folderName !== folderName);
+    console.log(`📊 Albums avant: ${importedAlbums.length}, après: ${updatedAlbums.length}`);
+    saveAlbums(updatedAlbums);
+    
+    // If the currently selected album is from this folder, deselect it
+    if (selectedAlbum?.folderName === folderName) {
+      setSelectedAlbum(null);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-background">
       <div className="flex flex-1 overflow-hidden">
@@ -222,6 +234,7 @@ const Index = () => {
                     onImport={addAlbums}
                     currentAlbums={importedAlbums}
                     onUpdateAlbums={saveAlbums}
+                    onRemoveFolderAlbums={handleRemoveFolderAlbums}
                   />
                 </div>
               </div>

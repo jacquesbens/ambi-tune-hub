@@ -5,6 +5,7 @@ export interface Album {
   cover: string;
   year: number;
   tracks: Track[];
+  folderName?: string;
 }
 
 export interface Track {
