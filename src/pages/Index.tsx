@@ -24,10 +24,10 @@ const Index = () => {
 
   // Sidebar navigation
   const sidebarNav = useKeyboardNavigation({
-    itemCount: 4,
+    itemCount: 5,
     enabled: navigationMode === "sidebar",
     onSelect: (index) => {
-      const views = ["home", "library", "search", "settings"];
+      const views = ["home", "library", "tracks", "search", "settings"];
       setActiveView(views[index]);
       setNavigationMode("content");
     },
@@ -206,6 +206,44 @@ const Index = () => {
                   <h3 className="text-2xl font-semibold mb-4">Lecture récente</h3>
                   <p className="text-muted-foreground">Continuez l'écoute</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeView === "tracks" && (
+            <div className="p-8">
+              <h2 className="text-4xl font-bold text-foreground mb-2">Morceaux</h2>
+              <p className="text-xl text-muted-foreground mb-8">
+                {allAlbums.reduce((sum, album) => sum + album.tracks.length, 0)} morceaux dans votre collection
+              </p>
+              
+              <div className="space-y-1">
+                {allAlbums.flatMap(album => 
+                  album.tracks.map(track => (
+                    <div
+                      key={track.id}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer group"
+                      onClick={() => handleTrackPlay(track)}
+                    >
+                      <img
+                        src={track.cover}
+                        alt={track.title}
+                        className="w-12 h-12 rounded object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {track.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {track.artist} • {track.album}
+                        </p>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, "0")}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
